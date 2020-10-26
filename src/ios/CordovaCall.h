@@ -8,6 +8,7 @@
 @property (nonatomic, copy) NSString *VoIPPushCallbackId;
 @property (nonatomic, copy) NSString *VoIPPushClassName;
 @property (nonatomic, copy) NSString *VoIPPushMethodName;
+@property (nonatomic, copy) NSString *VoIPPushToken;
 
 - (void)init:(CDVInvokedUrlCommand*)command;
 
