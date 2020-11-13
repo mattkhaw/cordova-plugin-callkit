@@ -18,6 +18,10 @@ BOOL enableDTMF = NO;
 BOOL isRinging = NO;
 PKPushRegistry *_voipRegistry;
 
+BOOL isCancelPush = NO;
+NSString* callBackUrl;
+NSString* callId;
+
 NSMutableArray* pendingCallResponses;
 NSString* const PENDING_RESPONSE_ANSWER = @"pendingResponseAnswer";
 NSString* const PENDING_RESPONSE_REJECT = @"pendingResponseReject";
@@ -517,6 +521,17 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
     isRinging = NO;
     [self setupAudioSession];
     [action fulfill];
+
+    // Notify Webhook that Native Call has been Answered
+    NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"pickup"]];
+    NSURLSession *session = [NSURLSession sharedSession];
+    [[session dataTaskWithURL:statusUpdateUrl
+              completionHandler:^(NSData *statusUpdateData,
+                                  NSURLResponse *statusUpdateResponse,
+                                  NSError *statusUpdateError) {
+                // handle response
+    }] resume];
+
     if ([callbackIds[@"answer"] count] == 0) {
         // callbackId for event not registered, add to pending to trigger on registration
         [pendingCallResponses addObject:PENDING_RESPONSE_ANSWER];
@@ -539,6 +554,16 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
                 [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
             }
         } else {
+            // Notify Webhook that Native Call has been Declined
+            NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"declined_callee"]];
+            NSURLSession *session = [NSURLSession sharedSession];
+            [[session dataTaskWithURL:statusUpdateUrl
+                    completionHandler:^(NSData *statusUpdateData,
+                                        NSURLResponse *statusUpdateResponse,
+                                        NSError *statusUpdateError) {
+                        // handle response
+            }] resume];
+
             if ([callbackIds[@"reject"] count] == 0) {
                 // callbackId for event not registered, add to pending to trigger on registration
                 [pendingCallResponses addObject:PENDING_RESPONSE_REJECT];
@@ -657,6 +682,25 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
     NSArray* args = [NSArray arrayWithObjects:[caller valueForKey:@"Username"], [caller valueForKey:@"ConnectionId"], nil];
     CDVInvokedUrlCommand* newCommand = [[CDVInvokedUrlCommand alloc] initWithArguments:args callbackId:@"" className:self.VoIPPushClassName methodName:self.VoIPPushMethodName];
     
+    // Store URL and Call Id so they can be used for call Answer/Reject 
+    callBackUrl = [caller valueForKey:@"CallbackUrl"];
+    callId = [caller valueForKey:@"ConnectionId"];
+    if ([[caller valueForKey:@"CancelPush"] isEqualToString:@"true"]) {
+        isCancelPush = YES;
+    } else {
+        isCancelPush = NO;
+    }
+
+    // Notify Webhook that VOIP Push Has been received and app is started
+    NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"connected"]];
+    NSURLSession *session = [NSURLSession sharedSession];
+    [[session dataTaskWithURL:statusUpdateUrl
+              completionHandler:^(NSData *statusUpdateData,
+                                  NSURLResponse *statusUpdateResponse,
+                                  NSError *statusUpdateError) {
+                // handle response
+    }] resume];
+
     [self receiveCall:newCommand];
     @try {
         NSError * err;
