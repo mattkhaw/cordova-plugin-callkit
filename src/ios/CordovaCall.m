@@ -555,14 +555,16 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
             }
         } else {
             // Notify Webhook that Native Call has been Declined
-            NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"declined_callee"]];
-            NSURLSession *session = [NSURLSession sharedSession];
-            [[session dataTaskWithURL:statusUpdateUrl
-                    completionHandler:^(NSData *statusUpdateData,
-                                        NSURLResponse *statusUpdateResponse,
-                                        NSError *statusUpdateError) {
-                        // handle response
-            }] resume];
+            if (!isCancelPush) {
+                NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"declined_callee"]];
+                NSURLSession *session = [NSURLSession sharedSession];
+                [[session dataTaskWithURL:statusUpdateUrl
+                        completionHandler:^(NSData *statusUpdateData,
+                                            NSURLResponse *statusUpdateResponse,
+                                            NSError *statusUpdateError) {
+                            // handle response
+                }] resume];
+            }
 
             if ([callbackIds[@"reject"] count] == 0) {
                 // callbackId for event not registered, add to pending to trigger on registration
@@ -690,16 +692,17 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
     } else {
         isCancelPush = NO;
     }
-
-    // Notify Webhook that VOIP Push Has been received and app is started
-    NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"connected"]];
-    NSURLSession *session = [NSURLSession sharedSession];
-    [[session dataTaskWithURL:statusUpdateUrl
-              completionHandler:^(NSData *statusUpdateData,
-                                  NSURLResponse *statusUpdateResponse,
-                                  NSError *statusUpdateError) {
-                // handle response
-    }] resume];
+    if (!isCancelPush) {
+        // Notify Webhook that VOIP Push Has been received and app is started
+        NSURL *statusUpdateUrl = [NSURL URLWithString:[NSString stringWithFormat:@"%@?id=%@&input=%@", callBackUrl, callId, @"connected"]];
+        NSURLSession *session = [NSURLSession sharedSession];
+        [[session dataTaskWithURL:statusUpdateUrl
+                  completionHandler:^(NSData *statusUpdateData,
+                                      NSURLResponse *statusUpdateResponse,
+                                      NSError *statusUpdateError) {
+                    // handle response
+        }] resume];
+    }
 
     [self receiveCall:newCommand];
     @try {
