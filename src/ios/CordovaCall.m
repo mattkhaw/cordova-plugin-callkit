@@ -15,7 +15,6 @@ NSMutableDictionary<NSString*, NSMutableArray*> *callbackIds;
 NSDictionary* pendingCallFromRecents;
 BOOL monitorAudioRouteChange = NO;
 BOOL enableDTMF = NO;
-BOOL isRinging = NO;
 PKPushRegistry *_voipRegistry;
 
 BOOL isCancelPush = NO;
@@ -221,10 +220,9 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
         callUpdate.supportsUngrouping = NO;
         callUpdate.supportsHolding = NO;
         callUpdate.supportsDTMF = enableDTMF;
-        if (!isRinging) {
+        if (!isCancelPush) {
             [self.provider reportNewIncomingCallWithUUID:callUUID update:callUpdate completion:^(NSError * _Nullable error) {
                 if(error == nil) {
-                    isRinging = YES;
                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Incoming call successful"] callbackId:command.callbackId];
                 } else {
                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]] callbackId:command.callbackId];
@@ -237,7 +235,11 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
                 [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
             }
         } else {
-            [self endCall:command];
+            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
+            if([calls count] == 1) {
+                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:nil reason:CXCallEndedReasonRemoteEnded];
+            }
+            
         }
     } else {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Caller id can't be empty"] callbackId:command.callbackId];
@@ -291,12 +293,10 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
 
 - (void)endCall:(CDVInvokedUrlCommand*)command
 {
-    isRinging = NO;
     CDVPluginResult* pluginResult = nil;
     NSArray<CXCall *> *calls = self.callController.callObserver.calls;
 
     if([calls count] == 1) {
-        //[self.provider reportCallWithUUID:calls[0].UUID endedAtDate:nil reason:CXCallEndedReasonRemoteEnded];
         CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:calls[0].UUID];
         CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
         [self.callController requestTransaction:transaction completion:^(NSError * _Nullable error) {
@@ -518,7 +518,6 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
 
 - (void)provider:(CXProvider *)provider performAnswerCallAction:(CXAnswerCallAction *)action
 {
-    isRinging = NO;
     [self setupAudioSession];
     [action fulfill];
 
@@ -543,7 +542,6 @@ NSString* const KEY_VOIP_PUSH_TOKEN = @"PK_deviceToken";
 
 - (void)provider:(CXProvider *)provider performEndCallAction:(CXEndCallAction *)action
 {
-    isRinging = NO;
     NSArray<CXCall *> *calls = self.callController.callObserver.calls;
     if([calls count] == 1) {
         if(calls[0].hasConnected) {
