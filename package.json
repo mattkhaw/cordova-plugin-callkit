@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-callkit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cordova plugin that lets you use iOS CallKit UI (with PushKit) and Android ConnectionService UI",
   "cordova": {
     "id": "cordova-plugin-callkit",
@@ -12,6 +12,9 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/mattkhaw/cordova-plugin-callkit"
+  },
+  "scripts": {
+    "build": "babel src/js --out-dir www"
   },
   "keywords": [
     "voip",
@@ -25,5 +28,12 @@
   ],
   "homepage": "https://github.com/mattkhaw/cordova-plugin-callkit",
   "author": "Matthew Khaw",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "babel-eslint": "^10.1.0",
+    "babel-plugin-add-header-comment": "^1.0.3"
+  }
 }
