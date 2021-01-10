@@ -7,7 +7,7 @@ class CordovaCall {
             if (!result) {
                 return;
             }
-            this.emit(result.action, result.data);
+            this.emit(result.eventName, result.data);
         }
 
         const fail = result => {
@@ -85,24 +85,10 @@ exports.setVideo = function(value, success, error) {
 };
 
 exports.receiveCall = function(call, success, error) {
-    if(typeof id == "function") {
-        error = success;
-        success = id;
-        id = undefined;
-    } else if(id) {
-        id = id.toString();
-    }
     exec(success, error, "CordovaCall", "receiveCall", [call]);
 };
 
 exports.sendCall = function(call, success, error) {
-    if(typeof id == "function") {
-        error = success;
-        success = id;
-        id = undefined;
-    } else if(id) {
-        id = id.toString();
-    }
     exec(success, error, "CordovaCall", "sendCall", [call]);
 };
 
