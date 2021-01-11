@@ -38,7 +38,7 @@ public class MyConnectionService extends ConnectionService {
         try {
             json = new JSONObject(request.getExtras().getString("incomingCall"));
         } catch (JSONException e) {
-            Log.e("connection", "error");
+            Log.e(TAG, "failed to create incoming connection");
             return null;
         }
 
@@ -78,16 +78,16 @@ public class MyConnectionService extends ConnectionService {
                 conn = null;
                 JSONObject response = new JSONObject();
                 try {
-                    response.put("connectionId", payload.getString("ConnectionId"));
-                    response.put("userName", payload.getString("Username"));
+                    response.put("callId", payload.getString("callId"));
+                    response.put("callName", payload.getString("callName"));
                 } catch (JSONException exception) {
-                    Log.e("my_connection", "connection id is not found", exception);
+                    Log.e(TAG, "could not construct hangup payload", exception);
                     return;
                 }
                 CordovaCall.sendJsonResult("hangup", response);
             }
         };
-        connection.setAddress(Uri.parse(payload.optString("Username")), TelecomManager.PRESENTATION_ALLOWED);
+        connection.setAddress(Uri.parse(payload.optString("callName")), TelecomManager.PRESENTATION_ALLOWED);
         Icon icon = CordovaCall.getIcon();
         if (icon != null) {
             StatusHints statusHints = new StatusHints((CharSequence) "", icon, new Bundle());
@@ -104,7 +104,7 @@ public class MyConnectionService extends ConnectionService {
         try {
             json = new JSONObject(request.getExtras().getString("outgoingCall"));
         } catch (JSONException e) {
-            Log.e("connection", "error");
+            Log.e(TAG, "failed to create outgoing connection");
             return null;
         }
 
@@ -133,10 +133,10 @@ public class MyConnectionService extends ConnectionService {
                 conn = null;
                 JSONObject response = new JSONObject();
                 try {
-                    response.put("connectionId", payload.getString("callId"));
-                    response.put("userName", payload.getString("name"));
+                    response.put("callId", payload.getString("callId"));
+                    response.put("callName", payload.getString("callName"));
                 } catch (JSONException exception) {
-                    Log.e("my_connection", "connection id is not found", exception);
+                    Log.e(TAG, "could not construct hangup payload", exception);
                     return;
                 }
                 CordovaCall.sendJsonResult("hangup", response);
@@ -157,7 +157,7 @@ public class MyConnectionService extends ConnectionService {
                 }
             }
         };
-        connection.setAddress(Uri.parse(payload.optString("name")), TelecomManager.PRESENTATION_ALLOWED);
+        connection.setAddress(Uri.parse(payload.optString("callName")), TelecomManager.PRESENTATION_ALLOWED);
         Icon icon = CordovaCall.getIcon();
         if (icon != null) {
             StatusHints statusHints = new StatusHints((CharSequence) "", icon, new Bundle());

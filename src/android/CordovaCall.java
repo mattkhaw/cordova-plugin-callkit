@@ -276,7 +276,7 @@ public class CordovaCall extends CordovaPlugin {
     private void sendCall() {
         String name;
         try {
-            name = outgoingCall.getString("name");
+            name = outgoingCall.getString("callName");
         } catch (JSONException e) {
             Log.e("CORDOVA_CALL", "name does not exist");
             return;

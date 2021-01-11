@@ -173,9 +173,9 @@ BOOL voipNotificationHandlerRegistered = NO;
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Call is not defined"] callbackId:command.callbackId];
     }
 
-    BOOL hasId = ![incomingCall[@"ConnectionId"] isEqual:[NSNull null]];
-    NSString* callName = incomingCall[@"Username"];
-    NSString* callId = hasId?incomingCall[@"ConnectionId"]:callName;
+    BOOL hasId = ![incomingCall[@"callId"] isEqual:[NSNull null]];
+    NSString* callName = incomingCall[@"callName"];
+    NSString* callId = hasId?incomingCall[@"callId"]:callName;
     NSUUID *callUUID = [[NSUUID alloc] init];
 
     if (hasId) {
@@ -215,7 +215,7 @@ BOOL voipNotificationHandlerRegistered = NO;
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Call is not defined"] callbackId:command.callbackId];
     }
     BOOL hasId = ![outgoingCall[@"callId"] isEqual:[NSNull null]];
-    NSString* callName = outgoingCall[@"name"];
+    NSString* callName = outgoingCall[@"callName"];
     NSString* callId = hasId?outgoingCall[@"callId"]:callName;
     NSUUID *callUUID = [[NSUUID alloc] init];
 
@@ -460,7 +460,7 @@ BOOL voipNotificationHandlerRegistered = NO;
     NSDictionary *call = callsMetadata[[action.callUUID UUIDString]];
     if([calls count] == 1 && call != nil) {
         if(calls[0].hasConnected) {
-            NSDictionary *payload = @{@"connectionId":call[@"ConnectionId"], @"userName": call[@"Username"]};
+            NSDictionary *payload = @{@"callId":call[@"callId"], @"callName": call[@"callName"]};
             [self sendEvent:@"hangup" payload:payload];
         } else {
             [self sendEvent:@"reject" payload:call];
@@ -560,7 +560,7 @@ BOOL voipNotificationHandlerRegistered = NO;
     [results setObject:data forKey:@"extra"];
     
     @try {
-        NSDictionary *caller = data[@"Caller"];
+        NSDictionary *caller = data[@"caller"];
         NSArray* args = [NSArray arrayWithObjects:caller,nil];
         
         CDVInvokedUrlCommand* newCommand = [[CDVInvokedUrlCommand alloc] initWithArguments:args callbackId:@"" className:self.VoIPPushClassName methodName:self.VoIPPushMethodName];
