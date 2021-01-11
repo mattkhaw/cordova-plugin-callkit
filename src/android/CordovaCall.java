@@ -355,25 +355,25 @@ public class CordovaCall extends CordovaPlugin {
         }
     }
 
-    public static void sendJsonResult(String callbackId, JSONObject json) {
+    public static void sendJsonResult(String eventName, JSONObject json) {
         if (cordovaWebView != null) {
-            Log.d(TAG, "sending json directly " + callbackId);
-            sendJson(callbackId, json);
+            Log.d(TAG, "sending json directly " + eventName);
+            sendJson(eventName, json);
             return;
         }
 
-        Log.d(TAG, "caching event data " + callbackId);
-        cachedEvents.put(callbackId, json);
+        Log.d(TAG, "caching event data " + eventName);
+        cachedEvents.put(eventName, json);
     }
 
-    private static void sendJson(String callbackId, JSONObject json) {
+    private static void sendJson(String eventName, JSONObject json) {
         if (eventCallbackContext == null) {
             return;
         }
 
         JSONObject total = new JSONObject();
         try {
-            total.put("action", callbackId);
+            total.put("eventName", eventName);
             total.put("data", json);
         } catch (JSONException e) {
             Log.e(TAG, "building event payload failed", e);
