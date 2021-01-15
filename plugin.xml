@@ -13,7 +13,7 @@
     <platform name="android">
         <config-file parent="/*" target="res/xml/config.xml">
             <feature name="CordovaCall">
-                <param name="android-package" value="com.dmarc.cordovacall.CordovaCall" />
+                <param name="android-package" value="com.gnetlab.callkit.CordovaCall" />
                 <param name="onload" value="true" />
             </feature>
         </config-file>
@@ -25,7 +25,7 @@
         </config-file>
 
         <config-file parent="/manifest/application" target="AndroidManifest.xml">
-            <service android:name="com.dmarc.cordovacall.MyConnectionService"
+            <service android:name="com.gnetlab.callkit.MyConnectionService"
                     android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
                 <intent-filter>
                     <action android:name="android.telecom.ConnectionService" />
@@ -33,8 +33,8 @@
             </service>
         </config-file>
 
-        <source-file src="src/android/CordovaCall.java" target-dir="src/com/dmarc/cordovacall" />
-        <source-file src="src/android/MyConnectionService.java" target-dir="src/com/dmarc/cordovacall" />
+        <source-file src="src/android/com/gnetlab/callkit/CordovaCall.java" target-dir="src/com/gnetlab/callkit" />
+        <source-file src="src/android/com/gnetlab/callkit/MyConnectionService.java" target-dir="src/com/gnetlab/callkit" />
   </platform>
 
     <platform name="ios">

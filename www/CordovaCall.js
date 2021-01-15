@@ -66,22 +66,6 @@ exports.endCall = function(success, error) {
     exec(success, error, "CordovaCall", "endCall", []);
 };
 
-exports.mute = function(success, error) {
-    exec(success, error, "CordovaCall", "mute", []);
-};
-
-exports.unmute = function(success, error) {
-    exec(success, error, "CordovaCall", "unmute", []);
-};
-
-exports.speakerOn = function(success, error) {
-    exec(success, error, "CordovaCall", "speakerOn", []);
-};
-
-exports.speakerOff = function(success, error) {
-    exec(success, error, "CordovaCall", "speakerOff", []);
-};
-
 exports.callNumber = function(to, success, error) {
     exec(success, error, "CordovaCall", "callNumber", [to]);
 };
@@ -94,3 +78,17 @@ exports.on = function(e, f) {
     };
     exec(success, error, "CordovaCall", "registerEvent", [e]);
 };
+
+// Audio API
+
+exports.getAudioModes = function(success, error) {
+    exec(success, error, "CordovaCall", "getAudioModes", []);
+}
+
+exports.setAudioMode = function(mode, success, error) {
+    exec(success, error, "CordovaCall", "setAudioMode", [mode]);
+}
+
+exports.getAudioMode = function(mode, success, error) {
+    exec(success, error, "CordovaCall", "getAudioMode", []);
+}
