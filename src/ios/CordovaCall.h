@@ -9,11 +9,13 @@
 @property (nonatomic, copy) NSString *VoIPPushClassName;
 @property (nonatomic, copy) NSString *VoIPPushMethodName;
 
-- (void)init:(CDVInvokedUrlCommand*)command;
+- (void)initVoip:(CDVInvokedUrlCommand*)command;
 
 // CallKit
 @property (nonatomic, strong) CXProvider *provider;
 @property (nonatomic, strong) CXCallController *callController;
+
+- (void)init:(CDVInvokedUrlCommand*)command;
 
 - (void)updateProviderConfig;
 - (void)setupAudioSession;
@@ -29,7 +31,6 @@
 - (void)sendCall:(CDVInvokedUrlCommand*)command;
 - (void)connectCall:(CDVInvokedUrlCommand*)command;
 - (void)endCall:(CDVInvokedUrlCommand*)command;
-- (void)registerEvent:(CDVInvokedUrlCommand*)command;
 - (void)mute:(CDVInvokedUrlCommand*)command;
 - (void)unmute:(CDVInvokedUrlCommand*)command;
 - (void)speakerOn:(CDVInvokedUrlCommand*)command;

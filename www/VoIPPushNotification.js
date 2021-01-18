@@ -40,7 +40,7 @@ var VoIPPushNotification = function() {
 
     // wait at least one process tick to allow event subscriptions
     setTimeout(function() {
-        exec(success, fail, 'CordovaCall', 'init');
+        exec(success, fail, 'CordovaCall', 'initVoip');
     }, 10);
 };
 
