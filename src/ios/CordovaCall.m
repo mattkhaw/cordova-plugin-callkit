@@ -15,7 +15,6 @@ BOOL includeInRecents = NO;
 BOOL monitorAudioRouteChange = NO;
 BOOL enableDTMF = NO;
 NSMutableDictionary* callsMetadata;
-BOOL voipNotificationHandlerRegistered = NO;
 
 - (void)pluginInitialize
 {
@@ -45,7 +44,6 @@ BOOL voipNotificationHandlerRegistered = NO;
 - (void)init:(CDVInvokedUrlCommand*)command
 {
     eventCallbackId = command.callbackId;
-    [self registerVoipNotificationsHandler];
 }
 
 - (void)updateProviderConfig
@@ -505,16 +503,7 @@ BOOL voipNotificationHandlerRegistered = NO;
 {
     self.VoIPPushCallbackId = command.callbackId;
     NSLog(@"[objC] callbackId: %@", self.VoIPPushCallbackId);
-    [self registerVoipNotificationsHandler];
-}
 
-- (void)registerVoipNotificationsHandler
-{
-    if(voipNotificationHandlerRegistered) {
-        return;
-    }
-
-    voipNotificationHandlerRegistered = YES;
     //http://stackoverflow.com/questions/27245808/implement-pushkit-and-test-in-development-behavior/28562124#28562124
     PKPushRegistry *pushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
     pushRegistry.delegate = self;

@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-callkit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Cordova plugin that lets you use iOS CallKit UI (with PushKit) and Android ConnectionService UI",
   "cordova": {
     "id": "cordova-plugin-callkit",
