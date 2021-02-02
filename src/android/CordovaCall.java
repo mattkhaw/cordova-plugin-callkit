@@ -99,6 +99,9 @@ public class CordovaCall extends CordovaPlugin {
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+
+        Log.e(TAG, "[VOIPCALLPLUGIN] execute:  execute(action:'" + action + "')");
+
         this.callbackContext = callbackContext;
         if (action.equals("init")) {
             eventCallbackContext = callbackContext;
@@ -235,6 +238,10 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     public static void registerIncomingCall(Context context, String callerDataSerialized) {
+        Log.e(TAG, "[VOIPCALLPLUGIN] registerIncomingCall: callerDataSerialized:" + callerDataSerialized );
+
+		//NOTE - ANSWERING A CALL IS NOT HERE -  all this the code that handles VOIP CALL UI ANSWER/DECLINE is in MyConnectionService.....onAnswer
+
         TelecomManager tm = (TelecomManager) context.getApplicationContext().getSystemService(context.getApplicationContext().TELECOM_SERVICE);
         String appName = getApplicationName(context);
         PhoneAccountHandle handle = new PhoneAccountHandle(new ComponentName(context.getApplicationContext(), MyConnectionService.class), appName);
@@ -261,11 +268,15 @@ public class CordovaCall extends CordovaPlugin {
                     this.callbackContext.error("You need to accept phone account permissions in order to send and receive calls");
                 }
             }
+        }else{
+            Log.e(TAG, "checkCallPermission: permissionCounter is NOT >= 1:" + permissionCounter );
         }
         permissionCounter--;
     }
 
     private void receiveCall() {
+        Log.e(TAG, "[VOIPCALLPLUGIN] receiveCall() STARTED" );
+
         Bundle callInfo = new Bundle();
         callInfo.putString("incomingCall", incomingCall.toString());
         tm.addNewIncomingCall(handle, callInfo);
@@ -274,6 +285,7 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     private void sendCall() {
+        Log.e(TAG, "[VOIPCALLPLUGIN] sendCall() STARTED" );
         String name;
         try {
             name = outgoingCall.getString("callName");
@@ -294,11 +306,13 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     private void mute() {
+        Log.e(TAG, "[VOIPCALLPLUGIN] mute() CALLED" );
         AudioManager audioManager = (AudioManager) this.cordova.getActivity().getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
         audioManager.setMicrophoneMute(true);
     }
 
     private void unmute() {
+        Log.e(TAG, "[VOIPCALLPLUGIN] unmute() CALLED" );
         AudioManager audioManager = (AudioManager) this.cordova.getActivity().getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
         audioManager.setMicrophoneMute(false);
     }
@@ -328,6 +342,7 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     private void callNumber() {
+        Log.e(TAG, "[VOIPCALLPLUGIN] callNumber() CALLED" );
         try {
             Intent intent = new Intent(Intent.ACTION_CALL, Uri.fromParts("tel", realCallTo, null));
             this.cordova.getActivity().getApplicationContext().startActivity(intent);
@@ -347,26 +362,34 @@ public class CordovaCall extends CordovaPlugin {
         }
         switch (requestCode) {
             case CALL_PHONE_REQ_CODE:
+                Log.e(TAG, "[VOIPCALLPLUGIN] onRequestPermissionResult >> CALL_PHONE_REQ_CODE");
                 this.sendCall();
                 break;
+
             case REAL_PHONE_CALL:
+                Log.e(TAG, "[VOIPCALLPLUGIN] onRequestPermissionResult >> REAL_PHONE_CALL");
                 this.callNumber();
                 break;
         }
     }
 
     public static void sendJsonResult(String eventName, JSONObject json) {
+        Log.e(TAG, "[VOIPCALLPLUGIN] sendJsonResult(eventName:'" + eventName + "' json:" + json.toString() );
+
         if (cordovaWebView != null) {
-            Log.d(TAG, "sending json directly " + eventName);
+            Log.d(TAG, "[VOIPCALLPLUGIN] sending json directly " + eventName);
             sendJson(eventName, json);
             return;
         }
 
-        Log.d(TAG, "caching event data " + eventName);
+        Log.d(TAG, "VOIPCALLPLUGIN] caching event data " + eventName);
         cachedEvents.put(eventName, json);
     }
 
     private static void sendJson(String eventName, JSONObject json) {
+        //Log.e(TAG, "[VOIPCALLPLUGIN] sendJson(eventName:'" + eventName + "' json:" + json.toString() );
+        Log.e(TAG, "[VOIPCALLPLUGIN] sendJson(eventName:'" + eventName + "' json:" + json.toString().substring(20) );
+
         if (eventCallbackContext == null) {
             return;
         }

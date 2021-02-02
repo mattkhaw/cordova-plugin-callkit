@@ -14,6 +14,7 @@ import android.telecom.StatusHints;
 import android.telecom.TelecomManager;
 import android.util.Log;
 
+import org.apache.cordova.twiliovideo.TwilioVideoActivity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -46,15 +47,93 @@ public class MyConnectionService extends ConnectionService {
         final Connection connection = new Connection() {
             @Override
             public void onAnswer() {
+                Log.e(TAG, "[onCreateIncomingConnection] onAnswer: CALLED");
+//                //----------------------------------------------------------------------------------
+//                this.setActive();
+//
+//                //----------------------------------------------------------------------------------
+//                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+//
+//                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+//
+//                getApplicationContext().startActivity(intent);
+//                //----------------------------------------------------------------------------------
+//                CordovaCall.sendJsonResult("answer", payload);
+//                //----------------------------------------------------------------------------------
+
+
+//v2 - call main last
+                //----------------------------------------------------------------------------------
                 this.setActive();
-                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getApplicationContext().startActivity(intent);
+
+
+                //----------------------------------------------------------------------------------
                 CordovaCall.sendJsonResult("answer", payload);
+                //----------------------------------------------------------------------------------
+                //----------------------------------------------------------------------------------
+				//TODO  - remove after ANSWER tested on many devices
+				//  Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+				//
+				//  //WRONG TwilioVideoActivity.config can be null
+				//  // Intent intent = new Intent(getApplicationContext(), TwilioVideoActivity.class);
+				//
+				//  intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+				//
+				//  getApplicationContext().startActivity(intent);
+
+                //------------------------------------------------------------------------------
+                //Launch (after delay) so MainActivity + TwilioVideoActivity are ready
+                //------------------------------------------------------------------------------
+                //CASE 1/2 - app running in foreground/background
+                //call > onAnswer > wait 3 secs switch to TwilioVideoActivity
+
+
+                    //------------------------------------------------------------------------------
+                    //switch to TwilioVideoActivity after delay
+                    //------------------------------------------------------------------------------
+                    Log.e(TAG, "TwilioVideoActivity.isActive() IS TRUE > switch to TwilioVideoActivity after delay");
+                    Handler handler;
+                    Runnable delayRunnable;
+
+                    handler = new Handler();
+                    delayRunnable = new Runnable() {
+
+                        @Override
+                        public void run() {
+                            //you need to wait before checking isActive TVA.onStart hasnt been called yet
+                            //if(TwilioVideoActivity.isActive()){
+                            if(TwilioVideoActivity.onResumeHasCompletedAtLeastOnce()){
+                                //----------------------------------------------------------------------
+                                Log.e(TAG, "DELAY COMPLETE > switch to TwilioVideoActivity");
+                                //----------------------------------------------------------------------
+                                Intent intent = new Intent(getApplicationContext(), TwilioVideoActivity.class);
+                                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                getApplicationContext().startActivity(intent);
+                                //----------------------------------------------------------------------
+                            }else{
+                                //------------------------------------------------------------------------------
+                                //CASE 3 - app not running
+                                //call > onAnswer > dont wait open MainActivity - main will call TwilioVideoActivity
+                                //else after press answer you only see TwilioVideoActivity no MainActivity in the stack and blank video screen - alpha not black cos it hasnt connected to anything
+                                //------------------------------------------------------------------------------
+                                Log.e(TAG, "TwilioVideoActivity.isActive() IS FALSE > launch MainActivity with no delay - it will launch TwilioVideoActivity");
+                                //------------------------------------------------------------------------------
+                                Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+                                intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                                getApplicationContext().startActivity(intent);
+                                //------------------------------------------------------------------------------
+                            }
+                        }
+                    };
+                    handler.postDelayed(delayRunnable, 3000);
+                    //------------------------------------------------------------------------------
+
             }
 
             @Override
             public void onReject() {
+                Log.e(TAG, "[onCreateIncomingConnection] onReject: CALLED");
                 DisconnectCause cause = new DisconnectCause(DisconnectCause.REJECTED);
                 this.setDisconnected(cause);
                 this.destroy();
@@ -87,7 +166,9 @@ public class MyConnectionService extends ConnectionService {
                 CordovaCall.sendJsonResult("hangup", response);
             }
         };
+        //------------------------------------------------------------------------------------------
         connection.setAddress(Uri.parse(payload.optString("callName")), TelecomManager.PRESENTATION_ALLOWED);
+        //------------------------------------------------------------------------------------------
         Icon icon = CordovaCall.getIcon();
         if (icon != null) {
             StatusHints statusHints = new StatusHints((CharSequence) "", icon, new Bundle());
