@@ -566,11 +566,11 @@ NSMutableDictionary* callsMetadata;
 {
     NSString* pushType = data[@"notificationType"];
     NSDictionary *content = data[@"content"];
-    if([pushType isEqualToString:@"InvitedToCall"]) {
+    if([pushType isEqualToString:@"CallCreated"]) {
         NSArray* args = [NSArray arrayWithObjects:content,nil];
         CDVInvokedUrlCommand* newCommand = [[CDVInvokedUrlCommand alloc] initWithArguments:args callbackId:@"" className:self.VoIPPushClassName methodName:self.VoIPPushMethodName];
         [self receiveCall:newCommand];
-    } else if ([pushType isEqualToString:@"CallAnswered"]) {
+    } else if ([pushType isEqualToString:@"CallAnsweredElsewhere"]) {
         NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
         if(callUUID != nil) {
             NSArray<CXCall *> *calls = self.callController.callObserver.calls;
@@ -578,7 +578,7 @@ NSMutableDictionary* callsMetadata;
                 [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonAnsweredElsewhere];
             }
         }
-    } else if ([pushType isEqualToString:@"CallDeclined"]) {
+    } else if ([pushType isEqualToString:@"CallDeclinedElsewhere"]) {
         NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
         if(callUUID != nil) {
             NSArray<CXCall *> *calls = self.callController.callObserver.calls;
