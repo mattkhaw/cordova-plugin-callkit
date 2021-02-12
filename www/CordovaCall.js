@@ -131,8 +131,8 @@ exports.connectCall = function (success, error) {
   exec(success, error, "CordovaCall", "connectCall", []);
 };
 
-exports.endCall = function (success, error) {
-  exec(success, error, "CordovaCall", "endCall", []);
+exports.endCall = function (callId, success, error) {
+  exec(success, error, "CordovaCall", "endCall", [callId]);
 };
 
 exports.mute = function (success, error) {
