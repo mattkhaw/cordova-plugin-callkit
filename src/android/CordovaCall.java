@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.telecom.Connection;
+import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
@@ -329,7 +330,35 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public static void registerIncomingCall(Context context, String callerDataSerialized) {
+    public static void processCallNotification(Context context, String notificationType, String notificationData) {
+        Connection conn = MyConnectionService.getOldestConnection();
+        switch (notificationType) {
+            case "CallCreated":
+                registerIncomingCall(context, notificationData);
+                break;
+            case "CallAnsweredElsewhere":
+                if(!MyConnectionService.isActive(conn)) {
+                    MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.ANSWERED_ELSEWHERE));
+                }
+
+                break;
+            case "CallDeclinedElsewhere":
+                if(!MyConnectionService.isActive(conn)) {
+                    MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.REJECTED));
+                }
+
+                break;
+            case "CallCompleted":
+                MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.REMOTE));
+                break;
+            case "CallMissed":
+                MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.MISSED));
+                break;
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    private static void registerIncomingCall(Context context, String callerDataSerialized) {
         Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] [registerIncomingCall] STARTED" );
         Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] [registerIncomingCall:] callerDataSerialized: START ********" );
         Log.w(TAG, callerDataSerialized );
@@ -519,8 +548,8 @@ public class CordovaCall extends CordovaPlugin {
             //Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT sendJson() - eventName:'answer' SET endCallInProgress = false");
             //--------------------------------------------------------------------------------------
         }else
-            {
-        	//not hangup - skip
+        {
+            //not hangup - skip
         }
 
         if (eventCallbackContext == null) {
