@@ -44,7 +44,24 @@ public class MyConnectionService extends ConnectionService {
 
     private static ArrayList< Connection> connectionsList = new ArrayList<>();
 
+    public static boolean isActive(Connection conn) {
+        return conn != null && conn.getState() == Connection.STATE_ACTIVE;
+    }
 
+    public static boolean isEnded(Connection conn) {
+        return conn == null || conn.getState() == Connection.STATE_DISCONNECTED;
+    }
+
+    public static boolean dropConnection(Connection conn, DisconnectCause cause) {
+        if(isEnded(conn)) {
+            return false;
+        }
+
+        conn.setDisconnected(cause);
+        conn.destroy();
+        removeConnection(conn);
+        return true;
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
@@ -268,7 +285,7 @@ public class MyConnectionService extends ConnectionService {
             TwilioVideoActivity.twilioVideoActivity.moveTaskToBack(true);
 
         }else{
-        	Log.e(TAG, "TwilioVideoActivity.twilioVideoActivity is null");
+            Log.e(TAG, "TwilioVideoActivity.twilioVideoActivity is null");
         }
 
         return connection;
@@ -391,7 +408,7 @@ public class MyConnectionService extends ConnectionService {
     public static Connection getOldestConnection() {
         Connection lastConnection = null;
         if(null != connectionsList){
-        	if(connectionsList.size() > 0){
+            if(connectionsList.size() > 0){
 
 
                 for(int index = 0; index < connectionsList.size(); index++) {
@@ -439,11 +456,11 @@ public class MyConnectionService extends ConnectionService {
 
                 lastConnection = connectionsList.get(0);
 
-        	}else{
-        		Log.e(TAG, "connectionDictionary.size() is 0 - getConnection() FAILED");
-        	}
+            }else{
+                Log.e(TAG, "connectionDictionary.size() is 0 - getConnection() FAILED");
+            }
         }else{
-        	Log.e(TAG, "connectionsList is null");
+            Log.e(TAG, "connectionsList is null");
         }
 
         return lastConnection;
@@ -538,7 +555,7 @@ public class MyConnectionService extends ConnectionService {
     }
 
     //callId is in payload
-    private void removeConnection(Connection connection){
+    private static void removeConnection(Connection connection){
 
         if(null != connection){
             //--------------------------------------------------------------------------------------
