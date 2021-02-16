@@ -582,11 +582,12 @@ NSMutableDictionary* callsMetadata;
 {
     self.VoIPPushCallbackId = command.callbackId;
     NSLog(@"[objC] callbackId: %@", self.VoIPPushCallbackId);
-    
-    //http://stackoverflow.com/questions/27245808/implement-pushkit-and-test-in-development-behavior/28562124#28562124
-    PKPushRegistry *pushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
-    pushRegistry.delegate = self;
-    pushRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
+    if (![self isCallKitDisabledForChina]) {
+        //http://stackoverflow.com/questions/27245808/implement-pushkit-and-test-in-development-behavior/28562124#28562124
+        PKPushRegistry *pushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
+        pushRegistry.delegate = self;
+        pushRegistry.desiredPushTypes = [NSSet setWithObject:PKPushTypeVoIP];
+    }
 }
 
 - (void)pushRegistry:(PKPushRegistry *)registry didUpdatePushCredentials:(PKPushCredentials *)credentials forType:(NSString *)type{
