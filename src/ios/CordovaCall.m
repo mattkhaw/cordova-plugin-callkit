@@ -580,9 +580,12 @@ NSMutableDictionary* callsMetadata;
 // PushKit
 - (void)initVoip:(CDVInvokedUrlCommand*)command
 {
+    if ([self isCallKitDisabledForChina]) {
+        return;
+    }
+
     self.VoIPPushCallbackId = command.callbackId;
     NSLog(@"[objC] callbackId: %@", self.VoIPPushCallbackId);
-    
     //http://stackoverflow.com/questions/27245808/implement-pushkit-and-test-in-development-behavior/28562124#28562124
     PKPushRegistry *pushRegistry = [[PKPushRegistry alloc] initWithQueue:dispatch_get_main_queue()];
     pushRegistry.delegate = self;
