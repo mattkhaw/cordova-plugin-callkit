@@ -19,6 +19,7 @@ import android.telecom.TelecomManager;
 import android.util.Log;
 
 import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
@@ -111,10 +112,11 @@ public class CordovaCall extends CordovaPlugin {
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
 
-        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] ACTION INCOMING2: START ********'");
-        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] ACTION INCOMING2: '");
-        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] ACTION INCOMING2: action:'" + action + "')");
-        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] ACTION INCOMING2: '");
+        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:] ACTION INCOMING2: START ********'");
+        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:] ACTION INCOMING2: '");
+        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:] ACTION INCOMING2: action:'" + action + "')");
+        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:] ACTION INCOMING2: args:'" + args + "')");
+        Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:] ACTION INCOMING2: '");
 
 
         this.callbackContext = callbackContext;
@@ -132,19 +134,18 @@ public class CordovaCall extends CordovaPlugin {
 
             return true;
             //--------------------------------------------------------------------------------------
-        }
-        else if (action.equals("receiveCall")) {
+        } else if (action.equals("receiveCall")) {
             //--------------------------------------------------------------------------------------
             //Connection conn = MyConnectionService.getConnection();
 
             //for CALL WAITING there can be 2 connections - get [0]
-            Connection conn = MyConnectionService.getOldestConnection();
+            Connection conn = MyConnectionService.getLastConnection();
             //--------------------------------------------------------------------------------------
             if (conn != null) {
                 if (conn.getState() == Connection.STATE_ACTIVE) {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'receiveCall'] connection[0] is STATE_ACTIVE - You can't receive a call right now because you're already in a call");
+                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'receiveCall'] connection[0] is STATE_ACTIVE - You can't receive a call right now because you're already in a call");
                 } else {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'receiveCall'] connection[0] is NOT STATE_ACTIVE - You can't receive a call right now - your in a NON ACTIVE call e.g. on hold");
+                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'receiveCall'] connection[0] is NOT STATE_ACTIVE - You can't receive a call right now - your in a NON ACTIVE call e.g. on hold");
                 }
             } else {
                 incomingCall = args.optJSONObject(0);
@@ -154,22 +155,21 @@ public class CordovaCall extends CordovaPlugin {
             }
             return true;
             //--------------------------------------------------------------------------------------
-        }
-        else if (action.equals("sendCall")) {
+        } else if (action.equals("sendCall")) {
             //--------------------------------------------------------------------------------------
             //Connection conn = MyConnectionService.getConnection();
 
             //for CALL WAITING there can be 2 connections - get [0]
-            Connection conn = MyConnectionService.getOldestConnection();
+            Connection conn = MyConnectionService.getLastConnection();
             //--------------------------------------------------------------------------------------
             if (conn != null) {
                 if (conn.getState() == Connection.STATE_ACTIVE) {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'sendCall'] connection[0] is STATE_ACTIVE - You can't make a call right now because you're already in a call");
+                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'sendCall'] connection[0] is STATE_ACTIVE - You can't make a call right now because you're already in a call");
 
                 } else if (conn.getState() == Connection.STATE_DIALING) {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'sendCall'] connection[0]  - You can't make a call right now because you're already trying to make a call");
+                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'sendCall'] connection[0]  - You can't make a call right now because you're already trying to make a call");
                 } else {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'sendCall'] You can't make a call right now");
+                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'sendCall'] You can't make a call right now");
                 }
             } else {
                 outgoingCall = args.optJSONObject(0);
@@ -179,71 +179,75 @@ public class CordovaCall extends CordovaPlugin {
             }
             return true;
             //--------------------------------------------------------------------------------------
-        }
-        else if (action.equals("connectCall")) {
+        } else if (action.equals("connectCall")) {
             //--------------------------------------------------------------------------------------
             //Connection conn = MyConnectionService.getConnection();
 
             //for CALL WAITING there can be 2 connections - get [0]
-            Connection conn = MyConnectionService.getOldestConnection();
+            Connection conn = MyConnectionService.getLastConnection();
             //--------------------------------------------------------------------------------------
             if (conn == null) {
-                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'connectCall'] No call exists for you to connect");
+                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'connectCall'] No call exists for you to connect");
 
             } else if (conn.getState() == Connection.STATE_ACTIVE) {
-                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'connectCall'] Your call is already connected");
+                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'connectCall'] Your call is already connected");
 
             } else {
                 conn.setActive();
                 Intent intent = new Intent(this.cordova.getActivity().getApplicationContext(), this.cordova.getActivity().getClass());
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 this.cordova.getActivity().getApplicationContext().startActivity(intent);
-                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:] [action:'connectCall'] Call connected successfully");
+                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:] [action:'connectCall'] Call connected successfully");
             }
             return true;
-        }
-        else if (action.equals("endCall")) {
-            //Log.e(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] RECEIVED" );
+        } else if (action.equals("endCall")) {
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'endCall'] RECEIVED");
 
 
+            //--------------------------------------------------------------------------------------
+            //endCall - issue
+            //--------------------------------------------------------------------------------------
             //CORDOVA send endCall repeatedly till PLUGIN responds with "hangup"
-            //This was fine when we had one connection
-            //but with CALL WAITING we could have two
+            // This was fine when we had one connection
+            // but with CALL WAITING we could have two
             // and the second endCall hangs up the 2nd call as well
+            // we fixed it by passing callid to endCall(callId,...)
 
+            //--------------------------------------------------------------------------------------
+            //endCall
+            //--------------------------------------------------------------------------------------
+            Connection conn = null;
 
-            if(TwilioVideoActivity.endCall_can_disconnect){
+            if (null != args) {
+                String callId = (String) args.getString(0);
 
-                Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] RECEIVED - TwilioVideoActivity.endCall_can_disconnect is true - DISCONNECT  - FIRST 'endCall' (cordova sends multiple 'endCall' till 'hangup' received )" );
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'endCall'] RECEIVED with callId:" + callId);
+                if (null != callId) {
+                    conn = MyConnectionService.getConnectionByCallId(callId);
 
-                //set to false endCall can turn up more than once
-                Log.w(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] RECEIVED - TwilioVideoActivity.endCall_can_disconnect is true > SET TO false to prevent further endCall > conn.onDisconnect();" );
-
-                TwilioVideoActivity.endCall_can_disconnect = false;
-
-                //reset in answerCall - the ist call has ended endCall > closeRoom > answerCall - 2nd on starting
-
-                //--------------------------------------------------------------------------------------
-                //Connection conn = MyConnectionService.getConnection();
-
-                //for CALL WAITING there can be 2 connections - get [0]
-                Connection conn = MyConnectionService.getOldestConnection();
-                //--------------------------------------------------------------------------------------
-                if (conn == null) {
-                    this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] No call exists for you to end");
                 } else {
-                    conn.onDisconnect();
-                    this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] Call ended successfully");
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'endCall'] callId is null in args - cant call getConnectionByCallId(callId)");
                 }
+            } else {
+                Log.e(TAG, "args is null - for endCall - should be callId");
+                //----------------------------------------------------------------------------------
+                //should not happen - callId specified in ednCall endCall(callId)
+                //----------------------------------------------------------------------------------
+                //conn = MyConnectionService.getLastConnection();
 
-                //THE PLUGIN responds with "hangUP" and until it does JS repeatedly sends "endCall"
-            }else{
-                Log.e(TAG, "[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'endCall'] RECEIVED - TwilioVideoActivity.endCall_can_disconnect: false - IGNORE this 'endCall' [BUG:cordova sends multiple 'endCall' till 'hangup' received]" );
             }
 
+
+            //----------------------------------------------------------------------------------
+            if (conn == null) {
+                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'endCall'] getConnectionByCallId(callId) NOT FOUND (endCall can be sent multiple times the 1st one gets hangup response IGNORE the rest) ");
+            } else {
+                conn.onDisconnect();
+                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'endCall'] Call ended successfully");
+            }
+            //----------------------------------------------------------------------------------
             return true;
-        }
-        else if (action.equals("setAppName")) {
+        } else if (action.equals("setAppName")) {
             //--------------------------------------------------------------------------------------
             String appName = args.getString(0);
 
@@ -261,20 +265,18 @@ public class CordovaCall extends CordovaPlugin {
                         .build();
                 tm.registerPhoneAccount(phoneAccount);
             }
-            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'setAppName'] App Name Changed Successfully");
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'setAppName'] App Name Changed Successfully");
             return true;
             //--------------------------------------------------------------------------------------
-        }
-        else if (action.equals("setIcon"))
-        {
+        } else if (action.equals("setIcon")) {
             //--------------------------------------------------------------------------------------
             String iconName = args.getString(0);
             int iconId = this.cordova.getActivity().getApplicationContext().getResources().getIdentifier(iconName, "drawable", this.cordova.getActivity().getPackageName());
             if (iconId != 0) {
                 icon = Icon.createWithResource(this.cordova.getActivity(), iconId);
-                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'setIcon'] Icon Changed Successfully");
+                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'setIcon'] Icon Changed Successfully");
             } else {
-                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'setIcon'] This icon does not exist. Make sure to add it to the res/drawable folder the right way.");
+                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'setIcon'] This icon does not exist. Make sure to add it to the res/drawable folder the right way.");
             }
 
             return true;
@@ -282,22 +284,22 @@ public class CordovaCall extends CordovaPlugin {
         } else if (action.equals("mute")) {
 
             this.mute();
-            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'mute'] Muted Successfully");
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'mute'] Muted Successfully");
             return true;
 
         } else if (action.equals("unmute")) {
             this.unmute();
-            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'unmute'] Unmuted Successfully");
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'unmute'] Unmuted Successfully");
             return true;
 
         } else if (action.equals("speakerOn")) {
             this.speakerOn();
-            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'speakerOn'] Speakerphone is on");
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'speakerOn'] Speakerphone is on");
             return true;
 
         } else if (action.equals("speakerOff")) {
             this.speakerOff();
-            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'speakerOff'] Speakerphone is off");
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'speakerOff'] Speakerphone is off");
             return true;
 
         } else if (action.equals("callNumber")) {
@@ -310,10 +312,9 @@ public class CordovaCall extends CordovaPlugin {
                         callNumberPhonePermission();
                     }
                 });
-                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'callNumber'] Call Successful");
-            }
-            else {
-                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall.java][execute:][action:'callNumber'] Call Failed. You need to enter a phone number.");
+                this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'callNumber'] Call Successful");
+            } else {
+                this.callbackContext.error("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'callNumber'] Call Failed. You need to enter a phone number.");
 
             }
             return true;
@@ -331,39 +332,131 @@ public class CordovaCall extends CordovaPlugin {
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     public static void processCallNotification(Context context, String notificationType, String notificationData) {
-        Connection conn = MyConnectionService.getOldestConnection();
+
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] START ******** ");
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType);
+
+        //------------------------------------------------------------------------------------------
+        //LATEST CONNECTION
+        //------------------------------------------------------------------------------------------
+        //in new call - latest is the new call
+
+        //in multiple call (Incoming call while you are on a call)
+        //latest is the incoming Call
+        //latest set in addConnection
+        //------------------------------------------------------------------------------------------
+        //connection size can be 0,1,2
+        //if 0 - nothing to drop
+        //if 1 remove 1 - user ending call
+        //if 2 remove 1 - Incoming call - end first
+
+        String notification_callId = null;
+        try {
+            JSONObject json = new JSONObject(notificationData);
+            if(null != json){
+                notification_callId = json.getString("callId");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType + " notification_callId:" + notification_callId);
+            }else{
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType + " notification_callId: json is null");
+
+            }
+
+        } catch (JSONException e) {
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] couldnt parse JSON for notification_callId");
+
+        }
+
+
+
+        //------------------------------------------------------------------------------------------
+        //Find connection from callId in notification JSON
+        //------------------------------------------------------------------------------------------
+        //I was getting ghost notification whilst debugging
+        //I had kill the app whilst in the middle of a call dialling on the web
+        //I disconnected on web
+        //restarted the app
+        //but nothing in connections dictionary
+        //so use the callId in the notification - dont presume anything in the app yet
+        Connection notification_Connection = null;
+        
+        if(null != notification_callId){
+            notification_Connection = MyConnectionService.getConnectionByCallId(notification_callId);
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType + " notification_Connection: FOUND");
+        }else{
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType + " notification_Connection: NOT FOUND (notification_callId)");
+        }
+
+
         switch (notificationType) {
             case "CallCreated":
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCreated >> CALL registerIncomingCall]");
                 registerIncomingCall(context, notificationData);
                 break;
             case "CallAnsweredElsewhere":
-                if(!MyConnectionService.isActive(conn)) {
-                    MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.ANSWERED_ELSEWHERE));
-                }
+                if (null != notification_Connection) {
+                    if (!MyConnectionService.isActive(notification_Connection)) {
 
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallAnsweredElsewhere - CALL dropConnection [DisconnectCause(.ANSWERED_ELSEWHERE)]");
+
+                        MyConnectionService.dropConnection(notification_Connection, new DisconnectCause(DisconnectCause.ANSWERED_ELSEWHERE));
+
+                    }else {
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallAnsweredElsewhere + isActive - SKIP dropConnection");
+                    }
+                } else {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallAnsweredElsewhere - notification_Connection is null");
+                }
                 break;
+                
             case "CallDeclinedElsewhere":
-                if(!MyConnectionService.isActive(conn)) {
-                    MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.REJECTED));
+
+                if (null != notification_Connection) {
+                    if (!MyConnectionService.isActive(notification_Connection)) {
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallDeclinedElsewhere - CALL dropConnection [DisconnectCause(.REJECTED)]");
+                        MyConnectionService.dropConnection(notification_Connection, new DisconnectCause(DisconnectCause.REJECTED));
+                    }else {
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallDeclinedElsewhere + isActive - SKIP dropConnection");
+                    }
+                } else {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallDeclinedElsewhere - notification_Connection is null");
                 }
 
                 break;
+                
             case "CallCompleted":
-                MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.REMOTE));
+
+                if (null != notification_Connection) {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCompleted - CALL dropConnection [DisconnectCause(.REMOTE)]");
+                    MyConnectionService.dropConnection(notification_Connection, new DisconnectCause(DisconnectCause.REMOTE));
+                } else {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCompleted - notification_Connection is null - CANT dropConnection - MAY BE OLD CallComplete ");
+                }
+
                 break;
+                
             case "CallMissed":
-                MyConnectionService.dropConnection(conn, new DisconnectCause(DisconnectCause.MISSED));
+
+                if (null != notification_Connection) {
+                    MyConnectionService.dropConnection(notification_Connection, new DisconnectCause(DisconnectCause.MISSED));
+                } else {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallMissed - notification_Connection is null - CANT dropConnection");
+                }
                 break;
         }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    private static void registerIncomingCall(Context context, String callerDataSerialized) {
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] [registerIncomingCall] STARTED" );
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] [registerIncomingCall:] callerDataSerialized: START ********" );
-        Log.w(TAG, callerDataSerialized );
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] [registerIncomingCall:] callerDataSerialized END ********" );
+    public static void registerIncomingCall(Context context, String callerDataSerialized) {
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [registerIncomingCall] STARTED");
 
+        //------------------------------------------------------------------------------------------
+        if (null != callerDataSerialized) {
+            Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [registerIncomingCall:] callerDataSerialized: START ********");
+            Log.w(TAG, callerDataSerialized);
+            Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [registerIncomingCall:] callerDataSerialized: END **********");
+
+        }
+        //------------------------------------------------------------------------------------------
         //NOTE - if user presses ANSWER button its not handled here-  all this the code that handles VOIP CALL UI ANSWER/DECLINE is in MyConnectionService.....onAnswer
 
         TelecomManager tm = (TelecomManager) context.getApplicationContext().getSystemService(context.getApplicationContext().TELECOM_SERVICE);
@@ -395,15 +488,15 @@ public class CordovaCall extends CordovaPlugin {
                     this.callbackContext.error("You need to accept phone account permissions in order to send and receive calls");
                 }
             }
-        }else{
-            Log.e(TAG, "checkCallPermission: permissionCounter is NOT >= 1:" + permissionCounter );
+        } else {
+            Log.e(TAG, "checkCallPermission: permissionCounter is NOT >= 1:" + permissionCounter);
         }
         permissionCounter--;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void receiveCall() {
-        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java receiveCall() STARTED" );
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall receiveCall() STARTED");
 
         Bundle callInfo = new Bundle();
         callInfo.putString("incomingCall", incomingCall.toString());
@@ -414,7 +507,7 @@ public class CordovaCall extends CordovaPlugin {
 
     @RequiresApi(api = Build.VERSION_CODES.M)
     private void sendCall() {
-        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java sendCall() STARTED" );
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall sendCall() STARTED");
         String name;
         try {
             name = outgoingCall.getString("callName");
@@ -429,19 +522,33 @@ public class CordovaCall extends CordovaPlugin {
         callInfo.putParcelable(TelecomManager.EXTRA_OUTGOING_CALL_EXTRAS, callInfoBundle);
         callInfo.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, handle);
         callInfo.putBoolean(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, true);
-        tm.placeCall(uri, callInfo);
+
+        //Android Studio said add this check before placeCall
+        //never tested we dont send calls
+        if (ActivityCompat.checkSelfPermission(this.cordova.getActivity().getApplicationContext(), Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+
+            tm.placeCall(uri, callInfo);
+        }
+
         permissionCounter = 0;
         this.callbackContext.success("Outgoing call successful");
     }
 
     private void mute() {
-        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java mute() CALLED" );
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall mute() CALLED" );
         AudioManager audioManager = (AudioManager) this.cordova.getActivity().getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
         audioManager.setMicrophoneMute(true);
     }
 
     private void unmute() {
-        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java unmute() CALLED" );
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall unmute() CALLED" );
         AudioManager audioManager = (AudioManager) this.cordova.getActivity().getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
         audioManager.setMicrophoneMute(false);
     }
@@ -471,7 +578,7 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     private void callNumber() {
-        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java callNumber() CALLED" );
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall callNumber() CALLED" );
         try {
             Intent intent = new Intent(Intent.ACTION_CALL, Uri.fromParts("tel", realCallTo, null));
             this.cordova.getActivity().getApplicationContext().startActivity(intent);
@@ -492,26 +599,26 @@ public class CordovaCall extends CordovaPlugin {
         }
         switch (requestCode) {
             case CALL_PHONE_REQ_CODE:
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java onRequestPermissionResult >> CALL_PHONE_REQ_CODE");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall onRequestPermissionResult >> CALL_PHONE_REQ_CODE");
                 this.sendCall();
                 break;
 
             case REAL_PHONE_CALL:
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java onRequestPermissionResult >> REAL_PHONE_CALL");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] CordovaCall onRequestPermissionResult >> REAL_PHONE_CALL");
                 this.callNumber();
                 break;
         }
     }
 
     public static void sendJsonResult(String eventName, JSONObject json) {
-        //loged below as well Log.d(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java sendJsonResult(eventName:'" + eventName + "' json:" + json.toString() );
+        //loged below as well Log.d(TAG, "[VOIPCALLKITPLUGIN] CordovaCall sendJsonResult(eventName:'" + eventName + "' json:" + json.toString() );
 
         if (cordovaWebView != null) {
             sendJson(eventName, json);
             return;
         }
 
-        //Log.d(TAG, "[VOIPCALLKITPLUGIN] CordovaCall.java sendJsonResult caching event data " + eventName);
+        //Log.d(TAG, "[VOIPCALLKITPLUGIN] CordovaCall sendJsonResult caching event data " + eventName);
         cachedEvents.put(eventName, json);
     }
 
@@ -523,34 +630,13 @@ public class CordovaCall extends CordovaPlugin {
 
     private static void sendJson(String eventName, JSONObject json) {
         //--------------------------------------------------------------------------------------
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT > sendJson() - eventName:'" + eventName );
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT > sendJson() - json:");
+
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [sendJSON] RETURN RESPONSE TO CORDOVA - START *************************" );
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [sendJSON] <<<< JSMESSAGE OUT - eventName:'" + eventName );
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [sendJSON] <<<< JSMESSAGE OUT - json:");
+        //--------------------------------------------------------------------------------------
         Log.w(TAG, json.toString().substring(20));
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT > sendJson() - json END ***********");
-
         //--------------------------------------------------------------------------------------
-        //RESPONSE TO "endCall" > onDestroy() responds with "hangup"
-        //CORDOVA will send endCall over and over till hangup received
-        //--------------------------------------------------------------------------------------
-        if(eventName.equals("hangup")){
-            //--------------------------------------------------------------------------------------
-            //DONT DO HERE you can get endCall, endCall,endCall, return hangUp and still get more endCall
-            // endCallInProgress = false;
-            //--------------------------------------------------------------------------------------
-            //Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT sendJson() - eventName:'hangup' dont SET endCallInProgress = false here as there may be more endCalls - bug");
-            //--------------------------------------------------------------------------------------
-        }else if(eventName.equals("answer")){
-            //--------------------------------------------------------------------------------------
-            //2nd call - user presses ANSWER (on android 10 swipe up)
-            //endCallInProgress = false;
-            //moved to closeRoom - having it here breaks the very last endCall
-
-            //Log.w(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall.java] JSMESSAGE OUT sendJson() - eventName:'answer' SET endCallInProgress = false");
-            //--------------------------------------------------------------------------------------
-        }else
-        {
-            //not hangup - skip
-        }
 
         if (eventCallbackContext == null) {
             return;
@@ -573,5 +659,8 @@ public class CordovaCall extends CordovaPlugin {
                 eventCallbackContext.sendPluginResult(pluginResult);
             }
         });
+
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [sendJSON] RESPONSE TO CORDOVA - END   *************************" );
+
     }
 }

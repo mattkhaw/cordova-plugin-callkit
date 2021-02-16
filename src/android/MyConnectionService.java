@@ -36,13 +36,10 @@ import live.sea.chat.MainActivity;
 public class MyConnectionService extends ConnectionService {
 
     private static String TAG = "MyConnectionService";
-    //private static Connection conn1;
 
-    //LinkedHashMap keys are ordered - needed as getCollection - gets the last
+    private static LinkedHashMap<String, Connection> connectionDictionary = new LinkedHashMap<String, Connection>();
 
-    //private static HashMap<String, ArrayList<Connection>> connectionDictionary = new HashMap<String, ArrayList<Connection>>();
-
-    private static ArrayList< Connection> connectionsList = new ArrayList<>();
+    
 
     public static boolean isActive(Connection conn) {
         return conn != null && conn.getState() == Connection.STATE_ACTIVE;
@@ -54,55 +51,82 @@ public class MyConnectionService extends ConnectionService {
 
     public static boolean dropConnection(Connection conn, DisconnectCause cause) {
         if(isEnded(conn)) {
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [dropConnection] isEnded(conn): TRUE - ended already SKIP destroy");
+
             return false;
         }
 
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [dropConnection] isEnded(conn): FALSE - conn.destroy();");
         conn.setDisconnected(cause);
         conn.destroy();
-        removeConnection(conn);
+
+
+        //------------------------------------------------------------------------------------------
+
+        //connection numbers usually be 0,1,2
+        String removeable_callId = removeable_callId();
+
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [dropConnection] isEnded(conn): TRUE - removeConnectionByCallId(removeable_callId):" + removeable_callId);
+
+
+        if(null != removeable_callId){
+            removeConnectionByCallId(removeable_callId);
+        }else{
+        	Log.e(TAG, "currentConnectionCallId is null");
+        }
+        //------------------------------------------------------------------------------------------
         return true;
     }
+
+
+
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public Connection onCreateIncomingConnection(final PhoneAccountHandle connectionManagerPhoneAccount, final ConnectionRequest request) {
+
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService][onCreateIncomingConnection:] NEW INCOMING CALL - START ****");
+
         JSONObject json = null;
         try {
             json = new JSONObject(request.getExtras().getString("incomingCall"));
         } catch (JSONException e) {
-            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] failed to create incoming connection");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] failed to create incoming connection");
             return null;
         }
 
+        //------------------------------------------------------------------------------------------
         final JSONObject payload = json;
 
-        //BUG used to handle multiple 'endCall' messages coming from cordova till hangup returned
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java][onCreateIncomingConnection:] RESET FLAG TwilioVideoActivity.endCall_can_disconnect = true - next endCall will disconnect the VOIP and return 'hangup'");
+        //------------------------------------------------------------------------------------------
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService][onCreateIncomingConnection:] Connection connection = new Connection(){onAnswer/onReject}");
 
-        TwilioVideoActivity.endCall_can_disconnect = true;
-
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java][onCreateIncomingConnection:] Connection connection = new Connection(){onAnswer/onReject}");
-
-        final Connection connection = new Connection() {
+        final Connection connection1 = new Connection() {
             @Override
             public void onAnswer() {
                 //----------------------------------------------------------------------------------
-                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] [onCreateIncomingConnection] onAnswer: CALLED");
+                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onAnswer: CALLED");
 
                 //----------------------------------------------------------------------------------
                 //this shows the main Call UI for this connection - only work inside onAnswer
                 //its the full screen callkit UI AFTER you ANSWER
                 //THIS WILL NOT show the ANSWER/DECLINE popup
+                //----------------------------------------------------------------------------------
                 this.setActive();
+                //----------------------------------------------------------------------------------
+
 
                 //----------------------------------------------------------------------------------
                 //RESPOND TO CORDOVA - "answer" >> triggers Cordova to answerCall()
                 //----------------------------------------------------------------------------------
-                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] [onCreateIncomingConnection] onAnswer: RESPONSE to CORDOVA:'answer' - this should cause CORDOVA to start answerCall()");
+                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onAnswer: RESPONSE to CORDOVA:'answer' - this should cause CORDOVA to start answerCall()");
                 CordovaCall.sendJsonResult("answer", payload);
+                //----------------------------------------------------------------------------------
                 // returning message 'answer'
                 // will cause CORDOVA to call 'answerCall"
                 // so do it asap
+                //----------------------------------------------------------------------------------
+
 
                 //----------------------------------------------------------------------------------
                 //Launch (after delay) so MainActivity + TwilioVideoActivity are ready
@@ -114,7 +138,7 @@ public class MyConnectionService extends ConnectionService {
                 //------------------------------------------------------------------------------
                 //switch to TwilioVideoActivity after delay
                 //------------------------------------------------------------------------------
-                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] TwilioVideoActivity.isActive() IS TRUE > switch to TwilioVideoActivity after delay - START COUNTDOWN...");
+                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] TwilioVideoActivity.isActive() IS TRUE > switch to TwilioVideoActivity after delay - START COUNTDOWN...");
                 Handler handler;
                 Runnable delayRunnable;
 
@@ -127,7 +151,7 @@ public class MyConnectionService extends ConnectionService {
                         //if(TwilioVideoActivity.isActive()){
                         if(TwilioVideoActivity.onResumeHasCompletedAtLeastOnce()){
                             //----------------------------------------------------------------------
-                            Log.d(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] ...DELAY COMPLETE > switch to TwilioVideoActivity");
+                            Log.d(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] ...DELAY COMPLETE > switch to TwilioVideoActivity");
                             //----------------------------------------------------------------------
                             Intent intent = new Intent(getApplicationContext(), TwilioVideoActivity.class);
                             intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -139,7 +163,7 @@ public class MyConnectionService extends ConnectionService {
                             //call > onAnswer > dont wait open MainActivity - main will call TwilioVideoActivity
                             //else after press answer you only see TwilioVideoActivity no MainActivity in the stack and blank video screen - alpha not black cos it hasnt connected to anything
                             //------------------------------------------------------------------------------
-                            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] TwilioVideoActivity.isActive() IS FALSE > launch MainActivity with no delay - it will launch TwilioVideoActivity");
+                            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] TwilioVideoActivity.isActive() IS FALSE > launch MainActivity with no delay - it will launch TwilioVideoActivity");
                             //------------------------------------------------------------------------------
                             Intent intent = new Intent(getApplicationContext(), MainActivity.class);
                             intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -159,16 +183,13 @@ public class MyConnectionService extends ConnectionService {
                 //----------------------------------------------------------------------------------
                 //onReject / DECLINE CALL button
                 //----------------------------------------------------------------------------------
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] [onCreateIncomingConnection] onReject: CALLED");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onReject: CALLED");
                 DisconnectCause cause = new DisconnectCause(DisconnectCause.REJECTED);
                 this.setDisconnected(cause);
                 this.destroy();
 
                 //----------------------------------------------------------------------------------
-                //conn = null;
-
-                //removeConnection(payload);
-                removeConnection(this);
+                removeConnection(payload);
 
 
                 Intent intent = new Intent(getApplicationContext(), MainActivity.class);
@@ -179,7 +200,7 @@ public class MyConnectionService extends ConnectionService {
                 //RESPOND TO CORDOVA - "reject"
                 //----------------------------------------------------------------------------------
 
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] [onCreateIncomingConnection] onAnswer: RESPONSE to CORDOVA:'reject' - user pressed DECLINE");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onAnswer: RESPONSE to CORDOVA:'reject' - user pressed DECLINE");
                 CordovaCall.sendJsonResult("reject", payload);
 
                 //----------------------------------------------------------------------------------
@@ -200,11 +221,8 @@ public class MyConnectionService extends ConnectionService {
 
                 this.destroy();
                 //----------------------------------------------------------------------------------
-                //conn = null;
-
-
-                //removeConnection(payload);
-                removeConnection(this);
+                //INCOMING - also in OUTGOING BELOW
+                removeConnection(payload);
 
                 //----------------------------------------------------------------------------------
                 JSONObject response = new JSONObject();
@@ -212,42 +230,40 @@ public class MyConnectionService extends ConnectionService {
                     response.put("callId", payload.getString("callId"));
                     response.put("callName", payload.getString("callName"));
                 } catch (JSONException exception) {
-                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] could not construct hangup payload", exception);
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] could not construct hangup payload", exception);
                     return;
                 }
 
                 //----------------------------------------------------------------------------------
                 //RESPOND TO CORDOVA - "hangup"
                 //----------------------------------------------------------------------------------
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] [onCreateIncomingConnection] onDisconnect: RESPONSE to CORDOVA:'hangup'");
+                Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onDisconnect: RESPONSE to CORDOVA:'hangup'");
                 //"hangup"returned in two place IncomingCall and OutgoinfCall - sea.chat doesnt do outgoign calls
                 CordovaCall.sendJsonResult("hangup", response);
             }
         };
 
         //------------------------------------------------------------------------------------------
-        connection.setAddress(Uri.parse(payload.optString("callName")), TelecomManager.PRESENTATION_ALLOWED);
+        connection1.setAddress(Uri.parse(payload.optString("callName")), TelecomManager.PRESENTATION_ALLOWED);
 
         //------------------------------------------------------------------------------------------
         Icon icon = CordovaCall.getIcon();
         if (icon != null) {
             StatusHints statusHints = new StatusHints((CharSequence) "", icon, new Bundle());
-            connection.setStatusHints(statusHints);
+            connection1.setStatusHints(statusHints);
         }
 
         //------------------------------------------------------------------------------------------
-        //conn = connection;
-
-        //addConnection(payload, connection);
-        addConnection(connection);
+        addConnection(payload, connection1);
 
         //------------------------------------------------------------------------------------------
         //RESPONSE TO CORDOVA - 'receiveCall' - tells CORDOVA weve recived a VOIP call
         //------------------------------------------------------------------------------------------
         CordovaCall.sendJsonResult("receiveCall", payload);
+
         //------------------------------------------------------------------------------------------
-
-
+        //ANDROID 10 - possibly still issue
+        //------------------------------------------------------------------------------------------
         //ISSUE - ANDROID 10 for 2ndd, 3rd incoming calls the ACCEPT/DECLINE is hidden in the notification panel
         //or is behind the TwilioVA and MainActivity
 
@@ -261,6 +277,8 @@ public class MyConnectionService extends ConnectionService {
         //This only works for
         if(null != TwilioVideoActivity.twilioVideoActivity){
 
+            //--------------------------------------------------------------------------------------
+            //DEBUG - I was checking state to see if I could remove connection instead we pass endCall(callId)
             Lifecycle.State tvaState = TwilioVideoActivity.twilioVideoActivity.getLifecycle().getCurrentState();
 
             if(Lifecycle.State.CREATED == tvaState){
@@ -281,14 +299,15 @@ public class MyConnectionService extends ConnectionService {
             else {
                 Log.e(TAG, "TwilioVideoActivity STATE: unhandled");
             }
-
+            //--------------------------------------------------------------------------------------
             TwilioVideoActivity.twilioVideoActivity.moveTaskToBack(true);
-
+            //--------------------------------------------------------------------------------------
         }else{
-            Log.e(TAG, "TwilioVideoActivity.twilioVideoActivity is null");
+        	Log.e(TAG, "TwilioVideoActivity.twilioVideoActivity is null");
         }
 
-        return connection;
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService][onCreateIncomingConnection:] NEW INCOMING CALL - return connection - END  ****");
+        return connection1;
     }
 
 
@@ -302,7 +321,7 @@ public class MyConnectionService extends ConnectionService {
         try {
             json = new JSONObject(request.getExtras().getString("outgoingCall"));
         } catch (JSONException e) {
-            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] failed to create outgoing connection");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] failed to create outgoing connection");
             return null;
         }
 
@@ -332,10 +351,7 @@ public class MyConnectionService extends ConnectionService {
                 //----------------------------------------------------------------------------------
                 //REMOVE OUTGOING -
                 // see also above - REMOVE INCOMING CALL
-                //conn = null;
-
-                //removeConnection(payload);
-                removeConnection(this);
+                removeConnection(payload);
                 //----------------------------------------------------------------------------------
 
 
@@ -344,7 +360,7 @@ public class MyConnectionService extends ConnectionService {
                     response.put("callId", payload.getString("callId"));
                     response.put("callName", payload.getString("callName"));
                 } catch (JSONException exception) {
-                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService.java] could not construct hangup payload", exception);
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] could not construct hangup payload", exception);
                     return;
                 }
                 //IN TWO PLACES - this is OUTGOING CALL - not used see above for INCOMING CALLS where sea.chat returns hangup
@@ -376,10 +392,8 @@ public class MyConnectionService extends ConnectionService {
 
         //------------------------------------------------------------------------------------------
         //ADD OUTGOING CONNECTION - no used in seachat
-        //conn = connection;
+        addConnection(payload, connection);
 
-        //addConnection(payload, connection);
-        addConnection(connection);
 
         //------------------------------------------------------------------------------------------
         //RESPONSE TO CORDOVA - 'sendCall'
@@ -389,292 +403,352 @@ public class MyConnectionService extends ConnectionService {
     }
 
 
-
-
-
-
-
     //----------------------------------------------------------------------------------------------
     //CALLS COLLECTION
     //----------------------------------------------------------------------------------------------
-    //private static HashMap<String, ArrayList<Connection>> connectionDictionary = new HashMap<String, ArrayList<Connection>>();
 
+    public static Connection getConnectionByCallId(String callId){
+        Connection connectionFound = null;
 
+        if(null != callId){
 
+            //--------------------------------------------------------------------------------------
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] START ***********************");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId]");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId: " + callId);
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId]");
+            //--------------------------------------------------------------------------------------
 
-    //----------------------------------------------------------------------------------------------
-    //getConnection - gets last
-    //----------------------------------------------------------------------------------------------
-    public static Connection getOldestConnection() {
-        Connection lastConnection = null;
-        if(null != connectionsList){
-            if(connectionsList.size() > 0){
+            connectionFound = connectionDictionary.get(callId);
 
-
-                for(int index = 0; index < connectionsList.size(); index++) {
-                    Connection connection = connectionsList.get(index);
-
-                    int connectionState = connection.getState();
-                    if(Connection.STATE_INITIALIZING == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_INITIALIZING");
-
-                    }
-                    else if(Connection.STATE_NEW == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_NEW");
-
-                    }
-                    else if(Connection.STATE_RINGING == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_RINGING");
-
-                    }
-                    else if(Connection.STATE_DIALING == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_DIALING");
-
-                    }
-                    else if(Connection.STATE_ACTIVE == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_ACTIVE");
-
-                    }
-                    else if(Connection.STATE_HOLDING == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_HOLDING");
-
-                    }
-                    else if(Connection.STATE_DISCONNECTED == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_DISCONNECTED");
-
-                    }
-                    else if(Connection.STATE_PULLING_CALL == connectionState){
-                        Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][getOldestConnection] connection.getState(): STATE_PULLING_CALL");
-
-                    }
-                    else {
-                        Log.e(TAG, "UNHANDLED connection.getState():" + connection.getState());
-                    }
-
-                }
-
-
-                lastConnection = connectionsList.get(0);
-
+            if(null != connectionFound){
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] connectionFound: FOUND" );
             }else{
-                Log.e(TAG, "connectionDictionary.size() is 0 - getConnection() FAILED");
+                //ok if endCall/hangUp done already
+                //can happen if you kill app and restart during debugging while call on web still open
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] connectionFound: NOT FOUND (ok if endCall/hangUp done already)" );
             }
+
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] END *************************" );
         }else{
-            Log.e(TAG, "connectionsList is null");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId is null");
         }
 
-        return lastConnection;
+        return connectionFound;
     }
-
-
-
-
-//    public static Connection getConnection() {
-//        Connection lastConnection = null;
-//
-//        if(null != connectionDictionary){
-//            Set<String> keys = connectionDictionary.keySet();
-//            String[] keysArray = keys.toArray(new String[0]);
-//
-//            if(keysArray.length > 0 ){
-//                String lastKey = keysArray[keysArray.length - 1];
-//                if(null != lastKey){
-//                    ArrayList<Connection> connectionListForKey = connectionDictionary.get(lastKey);
-//                    if(null != connectionListForKey){
-//                        //--------------------------------------------------------------------------
-//                        //connectionListForKey
-//                        //--------------------------------------------------------------------------
-//                        if(connectionListForKey.size() > 0 ){
-//                            //get LAST - should be only 1
-//                            lastConnection = connectionListForKey.get(connectionListForKey.size() - 1);
-//
-//                        }else{
-//                            Log.e(TAG, "connectionListForKey.size() is 0");
-//                        }
-//                    }else{
-//                        Log.e(TAG, "connectionListForKey is null");
-//                    }
-//                }else{
-//                    Log.e(TAG, "lastKey is null");
-//                }
-//
-//            }else{
-//                Log.e(TAG, " is null");
-//            }
-//
-//        }else{
-//            Log.e(TAG, "connectionsList is null");
-//        }
-//
-//        return lastConnection;
-//    }
-
-
-
 
     //----------------------------------------------------------------------------------------------
     //deinitConnection
     //----------------------------------------------------------------------------------------------
     //was in https://github.com/WebsiteBeaver/CordovaCall - but never used
     public static void deinitConnection() {
-        //        conn1 = null;
 
-//        if(null != connectionDictionary){
-//            //nulls all objects in
-//            connectionDictionary.clear();
-//
-//        }else{
-//            Log.e(TAG, "connectionsList is null");
-//        }
+        if(null != connectionDictionary){
+            //nulls all objects in
+            connectionDictionary.clear();
 
-        if(null != connectionsList){
-            connectionsList.clear();
         }else{
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][deinitConnection] connectionsList is null - deinitConnection FAILED");
+            Log.e(TAG, "connectionsList is null");
         }
+
     }
 
 
     //----------------------------------------------------------------------------------------------
     //CALLS COLLECTION - ADD / REMOVE
     //----------------------------------------------------------------------------------------------
-    private void addConnection(Connection connection){
-        if(null != connectionsList){
-            if(null != connection){
-                //----------------------------------------------------------------------------------
-                connectionsList.add(connection);
-                //----------------------------------------------------------------------------------
-                Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] DONE AFTER: connectionsList.size():" + connectionsList.size());
+//    public static Connection getLatestConnection() {
+//        Connection latestConnection = null;
+//
+//        if(null != currentConnectionCallId){
+//            //--------------------------------------------------------------------------
+//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLatestConnection] START ***********************");
+//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLatestConnection]  ");
+//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLatestConnection]  this.currentConnectionCallId: " + currentConnectionCallId);
+//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLatestConnection]  ");
+//
+//            //--------------------------------------------------------------------------
+//            latestConnection = getConnectionByCallId(currentConnectionCallId);
+//            //--------------------------------------------------------------------------
+//
+//        }else{
+//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] callId is null - ok if first video call");
+//        }
+//
+//        return latestConnection;
+//    }
 
+
+    public static Connection getLastConnection() {
+        Connection latestConnection = null;
+        
+        String callId_latest = last_callId();
+        
+        if(null != callId_latest){
+            //--------------------------------------------------------------------------
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection] START ***********************");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  last_callId(): " + callId_latest);
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
+
+            //--------------------------------------------------------------------------
+            latestConnection = getConnectionByCallId(callId_latest);
+            //--------------------------------------------------------------------------
+
+        }else{
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection] callId is null - ok if first video call");
+        }
+
+        return latestConnection;
+    }
+
+    public static Connection getRemoveableConnection() {
+        Connection latestConnection = null;
+
+        String removeable_callId = removeable_callId();
+
+        if(null != removeable_callId){
+            //--------------------------------------------------------------------------
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getRemoveableConnection] START ***********************");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getRemoveableConnection]  ");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getRemoveableConnection]  removeable_callId(): " + removeable_callId);
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getRemoveableConnection]  ");
+
+            //--------------------------------------------------------------------------
+            latestConnection = getConnectionByCallId(removeable_callId);
+            //--------------------------------------------------------------------------
+
+        }else{
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getRemoveableConnection] callId is null - ok if first video call");
+        }
+
+        return latestConnection;
+    }
+
+    
+    
+    //--------------------------------------------------------------------------------------
+    //FIRST/LAST callIds
+    //--------------------------------------------------------------------------------------
+    public static Object first_callId(){
+        String first_callId = null;
+
+        //set of keys
+        Set<String> set = connectionDictionary.keySet();
+
+        //Object[]
+        Object[] array = set.toArray();
+
+        Log.e(TAG, "getFirst: set.toArray():" + array.length);
+
+        if(array.length > 0){
+
+            Object firstObject = array[0];
+            if(firstObject instanceof String){
+                first_callId = (String)firstObject;
             }else{
-                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] connection is null - addConnection FAILED");
+                Log.e(TAG, "getFirst:firstObject instanceof String FAILED");
             }
         }else{
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] connectionsList is null - addConnection FAILED");
+            Log.e(TAG, "getFirst:array.length is 0 - firstInteger failed");
         }
+
+        Log.e(TAG, "getFirst: array:" + array.length);
+        return first_callId;
+    }
+    
+    
+    public static String last_callId(){
+        String lastKey = null;
+
+        //set of keys
+        Set<String> set = connectionDictionary.keySet();
+
+        //Object[]
+        Object[] array = set.toArray();
+
+        Log.e(TAG, "lastInteger: set.toArray():" + array.length);
+
+        if(array.length > 0){
+            Object lastObject = array[array.length - 1];
+            if(lastObject instanceof String){
+                lastKey = (String)lastObject;
+            }else{
+                Log.e(TAG, "lastObject instanceof String FAILED");
+            }
+
+        }else{
+            Log.e(TAG, "lastInteger: array.length is 0 - lastInteger failed");
+        }
+        
+        return lastKey;
+    }
+    public static String removeable_callId(){
+        String callIdFound = null;
+
+        //set of keys
+        Set<String> set = connectionDictionary.keySet();
+
+        //Object[]
+        Object[] array = set.toArray();
+
+        Log.e(TAG, "removeable_callId: set.toArray():" + array.length);
+        
+
+        if(array.length == 0){
+            Log.e(TAG, "removeable_callId: array.length is 0 - removeableConnection_callId failed");
+
+        }
+        else if(array.length == 1){
+            Log.e(TAG, "removeable_callId: array.length is 1 - return array[0]");
+
+            Object firstObject = array[0]; //FIRST
+
+            if(firstObject instanceof String){
+                callIdFound = (String)firstObject;
+            }else{
+                Log.e(TAG, "removeable_callId: array[0] instanceof String FAILED");
+            }
+        }
+        else if(array.length > 1){
+            Log.e(TAG, "removeable_callId: array.length > 1 - remove 2nd last");
+
+            //length: 0 - return null
+            //length: 1 - return first      >> [0]
+            //length: 2 - return length - 2 >> [1]
+            //length: 3 - return length - 2 >> [2]
+            Object secondLastObject = array[array.length - 2];
+
+            if(secondLastObject instanceof String){
+                callIdFound = (String)secondLastObject;
+            }else{
+                Log.e(TAG, "lastObject instanceof String FAILED");
+            }
+        }
+        else{
+            Log.e(TAG, "removeable_callId: UNHANDLED array.length" + array.length);
+        }
+        
+        return callIdFound;
+    }
+
+
+    //----------------------------------------------------------------------------------------------
+    //CALLS COLLECTION - ADD / REMOVE
+    //----------------------------------------------------------------------------------------------
+    private static void addConnection(JSONObject payload, Connection connection){
+        if(null != payload){
+            if(null != connection){
+
+                try {
+                    String callId = payload.getString("callId");
+
+                    if(null != callId){
+                        //--------------------------------------------------------------------------
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] START ***********************");
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection]  ");
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection]  callId: " + callId);
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection]  ");
+
+
+                        //--------------------------------------------------------------------------
+                        Connection connectionForCallId = connectionDictionary.get(callId);
+                        if(null != connectionForCallId){
+                            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] ERROR - connectionForCallId is not null - callId added already");
+
+                        }else{
+                            //----------------------------------------------------------------------
+                            //ADD TO CONNECTIONS
+                            //----------------------------------------------------------------------
+
+                            connectionDictionary.put(callId, connection);
+
+                            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] AFTER connectionDictionary.keySet().size():" + connectionDictionary.keySet().size());
+                            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] ADDED  callId: " + callId);
+                            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] ADDED  *****");
+
+                        }
+                        //--------------------------------------------------------------------------
+
+                    }else{
+                    	Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] callId is null");
+                    }
+                } catch (JSONException exception) {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] could not construct hangup payload", exception);
+
+                }
+                //----------------------------------------------------------------------------------
+
+            }else{
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] connection is null - addConnection FAILED");
+            }
+        }else{
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] payload is null - addConnection FAILED");
+        }
+
+        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][addConnection] END *************************" );
     }
 
     //callId is in payload
-    private static void removeConnection(Connection connection){
+    private static void removeConnection(JSONObject payload){
 
-        if(null != connection){
-            //--------------------------------------------------------------------------------------
-            if(null != connectionsList){
-                //----------------------------------------------------------------------------------
-                int indexFound = connectionsList.indexOf(connection);
+        if(null != payload){
+            //----------------------------------------------------------------------------------
+            try {
+                String callId = payload.getString("callId");
+                if(null != callId){
 
-                if(indexFound > -1){
-                    connectionsList.remove(indexFound);
-                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] connectionsList.remove(indexFound) - DONE AFTER: size():" + connectionsList.size());
+
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] START ***********************");
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection]");
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] callId: " + callId);
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection]");
+
+                    removeConnectionByCallId(callId);
 
                 }else{
-                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] indexOf(connection) is -1 - REMOVE FAILED -  NOT in connectionsList");
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] callId is null");
                 }
-                //----------------------------------------------------------------------------------
-            }else{
-                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] connectionsList is null - removeConnection FAILED");
+            } catch (JSONException exception) {
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] could not construct hangup payload", exception);
             }
-            //--------------------------------------------------------------------------------------
+            //----------------------------------------------------------------------------------
         }else{
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] connection is null - removeConnection FAILED");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] payload is null - addConnection FAILED");
+        }
+        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnection] END *************************" );
+    }
+
+    private static void removeConnectionByCallId(String callId){
+
+        if(null != callId){
+
+
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] START ***********************");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId]");
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] callId: " + callId);
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId]");
+
+
+
+            Connection connectionForCallId = connectionDictionary.get(callId);
+            if(null != connectionForCallId){
+
+                connectionDictionary.remove(callId);
+                Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] REMOVED callId:" + callId);
+                Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] REMOVED connectionDictionary.keySet().size():" + connectionDictionary.keySet().size());
+
+
+            }else{
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] ERROR - CANT REMOVE -  connectionListForCallId is null/NOT FOUND for callId:" + callId);
+
+            }
+
+        }else{
+            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] callId is null");
         }
     }
 
-//    private void addConnection(JSONObject payload, Connection connection){
-//        if(null != payload){
-//            if(null != connection){
-//
-//                try {
-//                    String callId = payload.getString("callId");
-//
-//                    if(null != callId){
-//
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] START ***********************");
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection]  ");
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection]  callId: " + callId);
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection]  ");
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection]  END *************************" );
-//
-//
-//                        ArrayList<Connection> connectionListForCallId = connectionDictionary.get(callId);
-//                        if(null != connectionListForCallId){
-//                            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] ERROR - connectionListForCallId is not null - should never happen");
-//
-//                        }else{
-//                        	Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] connectionListForCallId is null - CREATE IT");
-//
-//                            connectionListForCallId = new ArrayList<Connection>();
-//                        }
-//
-//                        connectionListForCallId.add(connection);
-//
-//                        connectionDictionary.put(callId, connectionListForCallId);
-//
-//                    }else{
-//                    	Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] callId is null");
-//                    }
-//                } catch (JSONException exception) {
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] could not construct hangup payload", exception);
-//
-//                }
-//                //----------------------------------------------------------------------------------
-//
-//            }else{
-//                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] connection is null - addConnection FAILED");
-//            }
-//        }else{
-//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][addConnection] payload is null - addConnection FAILED");
-//        }
-//    }
-//
-//    //callId is in payload
-//    private void removeConnection(JSONObject payload){
-//
-//        if(null != payload){
-//            //----------------------------------------------------------------------------------
-//            try {
-//                String callId = payload.getString("callId");
-//                if(null != callId){
-//
-//
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] START ***********************");
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection]");
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] callId: " + callId);
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection]");
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] END *************************" );
-//
-//
-//                    ArrayList<Connection> connectionListForCallId = connectionDictionary.get(callId);
-//                    if(null != connectionListForCallId){
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] ERROR - connectionListForCallId is not null - should never happen");
-//
-//                        if(1 == connectionListForCallId.size()){
-//                            //once Connection fo this KEY call id
-//                            //just remove it from the dict
-//
-//                            connectionDictionary.remove(callId);
-//                            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] REMOVED OK by key callId:" + callId);
-//
-//                        }else{
-//                            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] UNEXPECTED: connectionListForCallId.size() is not 1:" + connectionListForCallId.size());
-//                        }
-//
-//
-//                    }else{
-//                        Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] ERROR - connectionListForCallId is null - SHOULD NEVER HAPPEN");
-//
-//
-//                    }
-//                }else{
-//                    Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] callId is null");
-//                }
-//            } catch (JSONException exception) {
-//                Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] could not construct hangup payload", exception);
-//            }
-//            //----------------------------------------------------------------------------------
-//        }else{
-//            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService.java][removeConnection] payload is null - addConnection FAILED");
-//        }
-//    }
+
 
 }
