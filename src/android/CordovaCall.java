@@ -319,6 +319,9 @@ public class CordovaCall extends CordovaPlugin {
             }
             return true;
             //--------------------------------------------------------------------------------------
+        } else if (action.equals("reportCallEndedReason")) {
+            this.callbackContext.success("[VOIPCALLKITPLUGIN][CordovaCall][execute:][action:'reportCallEndedReason'] do nothing");
+            return true;
         }
 
         return false;
