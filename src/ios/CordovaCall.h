@@ -36,6 +36,7 @@
 - (void)speakerOn:(CDVInvokedUrlCommand*)command;
 - (void)speakerOff:(CDVInvokedUrlCommand*)command;
 - (void)callNumber:(CDVInvokedUrlCommand*)command;
+- (void)reportCallEndedReason:(CDVInvokedUrlCommand*)command;
 
 - (void)receiveCallFromRecents:(NSNotification *) notification;
 - (void)handleAudioRouteChange:(NSNotification *) notification;
