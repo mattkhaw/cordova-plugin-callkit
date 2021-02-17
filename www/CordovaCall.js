@@ -154,3 +154,7 @@ exports.speakerOff = function (success, error) {
 exports.callNumber = function (to, success, error) {
   exec(success, error, "CordovaCall", "callNumber", [to]);
 };
+
+exports.reportCallEndedReason = function (callId, reason, success, error) {
+  exec(success, error, "CordovaCall", "reportCallEndedReason", [callId, reason]);
+};

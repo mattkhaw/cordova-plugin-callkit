@@ -447,6 +447,48 @@ NSMutableDictionary* callsMetadata;
     
 }
 
+- (void)reportCallEndedReason:(CDVInvokedUrlCommand *)command
+{
+    NSString* callId = [command.arguments objectAtIndex:0];
+    NSString* reason = [command.arguments objectAtIndex:1];
+    if ([reason isEqualToString:@"CallAnsweredElsewhere"]) {
+        NSUUID* callUUID = [self getCallUUID:callId];
+        if(callUUID != nil) {
+            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
+            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasConnected && !calls[0].hasEnded) {
+                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonAnsweredElsewhere];
+            }
+        }
+    } else if ([reason isEqualToString:@"CallDeclinedElsewhere"]) {
+        NSUUID* callUUID = [self getCallUUID:callId];
+        if(callUUID != nil) {
+            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
+            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
+                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonDeclinedElsewhere];
+            }
+        }
+    } else if ([reason isEqualToString:@"CallMissed"]) {
+        NSUUID* callUUID = [self getCallUUID:callId];
+        if(callUUID != nil) {
+            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
+            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
+                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonUnanswered];
+            }
+        }
+    } else if ([reason isEqualToString:@"CallCompleted"]) {
+        NSUUID* callUUID = [self getCallUUID:callId];
+        if(callUUID != nil) {
+            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
+            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
+                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonRemoteEnded];
+            }
+        }
+    }
+
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
 - (void)receiveCallFromRecents:(NSNotification *) notification
 {
     NSString* callID = notification.object[@"callId"];
@@ -631,7 +673,10 @@ NSMutableDictionary* callsMetadata;
     [results setObject:data forKey:@"extra"];
     
     @try {
-        [self processPush:data];
+        NSDictionary *content = data[@"content"];
+        NSArray* args = [NSArray arrayWithObjects:content,nil];
+        CDVInvokedUrlCommand* newCommand = [[CDVInvokedUrlCommand alloc] initWithArguments:args callbackId:@"" className:self.VoIPPushClassName methodName:self.VoIPPushMethodName];
+        [self receiveCall:newCommand];
     }
     @catch (NSException *exception) {
        NSLog(@"[objC] error: %@", exception.reason);
@@ -641,51 +686,6 @@ NSMutableDictionary* callsMetadata;
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.VoIPPushCallbackId];
     }
-}
-
-
-- (void)processPush:(NSDictionary *)data
-{
-    NSString* pushType = data[@"notificationType"];
-    NSDictionary *content = data[@"content"];
-    if([pushType isEqualToString:@"CallCreated"]) {
-        NSArray* args = [NSArray arrayWithObjects:content,nil];
-        CDVInvokedUrlCommand* newCommand = [[CDVInvokedUrlCommand alloc] initWithArguments:args callbackId:@"" className:self.VoIPPushClassName methodName:self.VoIPPushMethodName];
-        [self receiveCall:newCommand];
-    } else if ([pushType isEqualToString:@"CallAnsweredElsewhere"]) {
-        NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
-        if(callUUID != nil) {
-            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
-            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasConnected && !calls[0].hasEnded) {
-                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonAnsweredElsewhere];
-            }
-        }
-    } else if ([pushType isEqualToString:@"CallDeclinedElsewhere"]) {
-        NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
-        if(callUUID != nil) {
-            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
-            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
-                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonDeclinedElsewhere];
-            }
-        }
-    } else if ([pushType isEqualToString:@"CallMissed"]) {
-        NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
-        if(callUUID != nil) {
-            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
-            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
-                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonUnanswered];
-            }
-        }
-    } else if ([pushType isEqualToString:@"CallCompleted"]) {
-        NSUUID* callUUID = [self getCallUUID:content[@"callId"]];
-        if(callUUID != nil) {
-            NSArray<CXCall *> *calls = self.callController.callObserver.calls;
-            if([calls count] == 1 && [calls[0].UUID isEqual:callUUID] && !calls[0].hasEnded) {
-                [self.provider reportCallWithUUID:calls[0].UUID endedAtDate:[[NSDate alloc] init] reason:CXCallEndedReasonRemoteEnded];
-            }
-        }
-    }
-    
 }
 
 - (NSUUID*)getCallUUID:(NSString*)callId

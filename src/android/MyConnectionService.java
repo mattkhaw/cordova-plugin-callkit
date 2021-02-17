@@ -78,10 +78,6 @@ public class MyConnectionService extends ConnectionService {
         return true;
     }
 
-
-
-
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public Connection onCreateIncomingConnection(final PhoneAccountHandle connectionManagerPhoneAccount, final ConnectionRequest request) {
 
