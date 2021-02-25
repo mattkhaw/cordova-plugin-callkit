@@ -59,7 +59,9 @@ NSMutableDictionary* callsMetadata;
     NSMutableSet *handleTypes = [[NSMutableSet alloc] init];
     [handleTypes addObject:@(CXHandleTypePhoneNumber)];
     providerConfiguration.supportedHandleTypes = handleTypes;
+    
     providerConfiguration.supportsVideo = YES;
+    
     if (@available(iOS 11.0, *)) {
         providerConfiguration.includesCallsInRecents = NO;
     }
@@ -131,8 +133,36 @@ NSMutableDictionary* callsMetadata;
 {
     @try {
         AVAudioSession *sessionInstance = [AVAudioSession sharedInstance];
+        //------------------------------------------------------------------------------------------
         [sessionInstance setCategory:AVAudioSessionCategoryPlayAndRecord error:nil];
-        [sessionInstance setMode:AVAudioSessionModeVoiceChat error:nil];
+
+        //------------------------------------------------------------------------------------------
+        //SPEAKERPHONE/RECEIVER(earpiece)
+        //in original twilio sample but doesnt show Speaker when we tap on airplay picker
+        /*! Only valid with AVAudioSessionCategoryPlayAndRecord.  Appropriate for Voice over IP
+         (VoIP) applications.  Reduces the number of allowable audio routes to be only those
+         that are appropriate for VoIP applications and may engage appropriate system-supplied
+         signal processing.  Has the side effect of setting AVAudioSessionCategoryOptionAllowBluetooth */
+        //WRONG - use AVAudioSessionModeVideoChat
+        //[sessionInstance setMode:AVAudioSessionModeVoiceChat error:nil];
+        //------------------------------------------------------------------------------------------
+
+        /*! Only valid with kAudioSessionCategory_PlayAndRecord. Reduces the number of allowable audio
+         routes to be only those that are appropriate for video chat applications. May engage appropriate
+         system-supplied signal processing.  Has the side effect of setting
+         AVAudioSessionCategoryOptionAllowBluetooth and AVAudioSessionCategoryOptionDefaultToSpeaker. */
+        //SPEAKERPHONE - REQUIRED ELSE SPEAKER doesnt appear
+        [sessionInstance setMode:AVAudioSessionModeVideoChat error:nil];
+        //------------------------------------------------------------------------------------------
+        
+        
+//        //https://github.com/iFLYOS-OPEN/SDK-EVS-iOS/blob/a111b7765fab62586be72199c417e2b103317e44/Pod/Classes/common/media_player/AudioSessionManager.m
+//        [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker|AVAudioSessionCategoryOptionMixWithOthers error:nil];
+//        [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:nil];
+//        [[AVAudioSession sharedInstance] setActive:YES error:nil];
+        
+        
+        
         NSTimeInterval bufferDuration = .005;
         [sessionInstance setPreferredIOBufferDuration:bufferDuration error:nil];
         [sessionInstance setPreferredSampleRate:44100 error:nil];
@@ -515,10 +545,20 @@ NSMutableDictionary* callsMetadata;
         NSArray* outputs = [previousRouteKey outputs];
         if([outputs count] > 0) {
             AVAudioSessionPortDescription *output = outputs[0];
+            
+            //--------------------------------------------------------------------------------------
+            //SPEAKERPHONE
+            //--------------------------------------------------------------------------------------
+            //BC - if you change from Speaker to iPhone in the AirPLay picker this tell cordova
+            //'Speaker' > speakerOn     - AVAudioSessionPortBuiltInSpeaker constant maps to string 'Speaker'
+            //NOT'Speaker' > speakerOff - 'Receiver' //AVAudioSessionPortBuiltInReceiver
+            //--------------------------------------------------------------------------------------
             if(![output.portType isEqual: @"Speaker"] && [reasonValue isEqual:@4]) {
                 [self sendEvent:@"speakerOn" payload:@{}];
+                
             } else if([output.portType isEqual: @"Speaker"] && [reasonValue isEqual:@3]) {
                 [self sendEvent:@"speakerOff" payload:@{}];
+                
             }
         }
     }
