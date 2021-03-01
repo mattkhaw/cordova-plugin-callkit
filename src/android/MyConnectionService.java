@@ -1,12 +1,17 @@
 package com.dmarc.cordovacall;
 
+import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Icon;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.telecom.CallAudioState;
 import android.telecom.Connection;
 import android.telecom.ConnectionRequest;
 import android.telecom.ConnectionService;
@@ -14,6 +19,7 @@ import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.StatusHints;
 import android.telecom.TelecomManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import androidx.annotation.RequiresApi;
@@ -24,6 +30,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -39,7 +46,13 @@ public class MyConnectionService extends ConnectionService {
 
     private static LinkedHashMap<String, Connection> connectionDictionary = new LinkedHashMap<String, Connection>();
 
-    
+	//TODO - needed?
+    //TwilioVideo
+    private static int connectionAudioRoute = 0;
+
+    public static int getConnectionAudioRoute() {
+        return connectionAudioRoute;
+    }
 
     public static boolean isActive(Connection conn) {
         return conn != null && conn.getState() == Connection.STATE_ACTIVE;
@@ -237,6 +250,47 @@ public class MyConnectionService extends ConnectionService {
                 //"hangup"returned in two place IncomingCall and OutgoinfCall - sea.chat doesnt do outgoign calls
                 CordovaCall.sendJsonResult("hangup", response);
             }
+
+			//AUDIO/SPEAKERPHONE/BLUETOOTH
+            public void onCallAudioStateChanged (CallAudioState state){
+                Log.e(TAG, "onCallAudioStateChanged: state" + state );
+
+                switch(state.getRoute()){
+                    case CallAudioState.ROUTE_EARPIECE:
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_EARPIECE");
+
+                        connectionAudioRoute = CallAudioState.ROUTE_EARPIECE;
+
+                        break;
+                    case CallAudioState.ROUTE_BLUETOOTH:
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_BLUETOOTH");
+
+                        connectionAudioRoute = CallAudioState.ROUTE_BLUETOOTH;
+
+                        break;
+                    case CallAudioState.ROUTE_WIRED_HEADSET:
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_WIRED_HEADSET (headphones without mic)");
+
+                        connectionAudioRoute = CallAudioState.ROUTE_WIRED_HEADSET;
+
+                        break;
+                    case CallAudioState.ROUTE_SPEAKER:
+                        Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_SPEAKER");
+
+                        connectionAudioRoute = CallAudioState.ROUTE_SPEAKER;
+
+                        break;
+                    default:
+                        Log.e(TAG, "onCallAudioStateChanged: UNHANDLED" + state );
+
+                        connectionAudioRoute = 0;
+                        break;
+                }
+                //the number of ROUTES is less than DEVICES
+
+                logAudioDeviceInfo();
+
+            }
         };
 
         //------------------------------------------------------------------------------------------
@@ -302,7 +356,41 @@ public class MyConnectionService extends ConnectionService {
         	Log.e(TAG, "TwilioVideoActivity.twilioVideoActivity is null");
         }
 
-        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService][onCreateIncomingConnection:] NEW INCOMING CALL - return connection - END  ****");
+
+
+        //------------------------------------------------------------------------------------------
+        //TO TOGGLE  SPEAKER DURING VOIP CALL ROUTE_SPEAKER or ROUTE_EARPIECE - setSpeakerPhoneOn(t/f) - doe nothing during VOIP call
+        connection1.setAudioRoute(CallAudioState.ROUTE_SPEAKER);
+        //------------------------------------------------------------------------------------------
+        //note: setAudioRoute is async - calling isSpeakerPhoneOn() here may not return correct value  - use onCallAudioStateChanged
+        //------------------------------------------------------------------------------------------
+
+        CallAudioState callAudioStateAFTER = connection1.getCallAudioState();
+
+        if(null != callAudioStateAFTER){
+            switch(callAudioStateAFTER.getRoute()){
+                case CallAudioState.ROUTE_EARPIECE:
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_EARPIECE");
+                    break;
+                case CallAudioState.ROUTE_BLUETOOTH:
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_BLUETOOTH");
+                    break;
+                case CallAudioState.ROUTE_WIRED_HEADSET:
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_WIRED_HEADSET");
+                    break;
+                case CallAudioState.ROUTE_SPEAKER:
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO] CordovaCall onCallAudioStateChanged: ROUTE_SPEAKER");
+                    break;
+                default:
+                    Log.e(TAG, "onCallAudioStateChanged: UNHANDLED" );
+                    break;
+            }
+        }else{
+        	Log.e(TAG, "callAudioStateAFTER is null");
+        }
+        //------------------------------------------------------------------------------------------
+        Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService][onCreateIncomingConnection:] RETURN Connection for NEW INCOMING CALL - shows CALLKIT ui END  ****");
+
         return connection1;
     }
 
@@ -409,10 +497,8 @@ public class MyConnectionService extends ConnectionService {
         if(null != callId){
 
             //--------------------------------------------------------------------------------------
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] START ***********************");
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId]");
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId: " + callId);
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId]");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] START ***********************");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId: " + callId);
             //--------------------------------------------------------------------------------------
 
             connectionFound = connectionDictionary.get(callId);
@@ -425,9 +511,9 @@ public class MyConnectionService extends ConnectionService {
                 Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] connectionFound: NOT FOUND (ok if endCall/hangUp done already)" );
             }
 
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] END *************************" );
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] END *************************" );
         }else{
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId is null");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getConnectionByCallId] callId is null");
         }
 
         return connectionFound;
@@ -482,10 +568,10 @@ public class MyConnectionService extends ConnectionService {
         
         if(null != callId_latest){
             //--------------------------------------------------------------------------
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection] START ***********************");
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  last_callId(): " + callId_latest);
-            Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection] START ***********************");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  last_callId(): " + callId_latest);
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][getLastConnection]  ");
 
             //--------------------------------------------------------------------------
             latestConnection = getConnectionByCallId(callId_latest);
@@ -742,6 +828,119 @@ public class MyConnectionService extends ConnectionService {
 
         }else{
             Log.e(TAG, "[VOIPCALLKITPLUGIN][MyConnectionService][removeConnectionByCallId] callId is null");
+        }
+    }
+
+
+
+    //Debug as we plug in wired and unwrired headset/ bluetooth headphones
+    //https://github.com/dengjianzhong/OddPoint/blob/2296ebc93392f8f8c98fa94bc30a4e049bf917b4/libwebrtc/src/main/java/sdk/android/src/java/org/webrtc/audio/WebRtcAudioUtils.java
+    private void logAudioDeviceInfo() {
+        Log.w(TAG, "[VIDEOPLUGIN][AUDIO][logAudioDeviceInfo]");
+
+        if (Build.VERSION.SDK_INT < 23) {
+            Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] Build.VERSION.SDK_INT < 23 - SKIP");
+
+        }else{
+            AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            if(null != audioManager){
+                final AudioDeviceInfo[] devices = audioManager.getDevices(AudioManager.GET_DEVICES_ALL);
+
+                Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] Audio Devices:" + devices.length);
+
+                for (AudioDeviceInfo deviceInfo : devices) {
+                    //------------------------------------------------------------------------------
+                    //Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] deviceInfo: START ********");
+                    String io = "";
+                    if(deviceInfo.isSource()){
+                        if(deviceInfo.isSink()){
+                            io = "Error(isSource:true and isSink:true)";
+                        }else{
+                            io = "INPUT ";//space needed for column
+                        }
+                    }else{
+                        //source false
+                        if(deviceInfo.isSink()){
+                            io = "OUTPUT";
+                        }else{
+                            io = "Error(isSource:false and isSink:false)";
+                        }
+                    }
+
+                    Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] [" + io +  "] [Name:'" + deviceInfo.getProductName()+ "'] "  + deviceTypeToString(deviceInfo.getType()));
+
+                    //    if (deviceInfo.getChannelCounts().length > 0) {
+                    //        Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] deviceInfo: channels        :" + Arrays.toString(deviceInfo.getChannelCounts()));
+                    //    }
+                    //
+                    //    if (deviceInfo.getEncodings().length > 0) {
+                    //        // Examples: ENCODING_PCM_16BIT = 2, ENCODING_PCM_FLOAT = 4.
+                    //        Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] deviceInfo: encodings       :" + Arrays.toString(deviceInfo.getEncodings()));
+                    //    }
+                    //
+                    //    if (deviceInfo.getSampleRates().length > 0) {
+                    //        Log.w(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] deviceInfo: samplerates     :" + Arrays.toString(deviceInfo.getSampleRates()));
+                    //
+                    //    }
+                    //------------------------------------------------------------------------------
+
+                }
+            }else{
+                Log.e(TAG, "[VOIPCALLKITPLUGIN][AUDIO][logAudioDeviceInfo] audioManager is null");
+            }
+        }
+    }
+    // Converts AudioDeviceInfo types to local string representation.
+    private static String deviceTypeToString(int type) {
+        switch (type) {
+            case AudioDeviceInfo.TYPE_UNKNOWN:
+                return "TYPE_UNKNOWN";
+            case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE:
+                return "TYPE_BUILTIN_EARPIECE";
+            case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER:
+                return "TYPE_BUILTIN_SPEAKER";
+            case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                return "TYPE_WIRED_HEADSET";
+            case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
+                return "TYPE_WIRED_HEADPHONES";
+            case AudioDeviceInfo.TYPE_LINE_ANALOG:
+                return "TYPE_LINE_ANALOG";
+            case AudioDeviceInfo.TYPE_LINE_DIGITAL:
+                return "TYPE_LINE_DIGITAL";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_SCO:
+                return "TYPE_BLUETOOTH_SCO";
+            case AudioDeviceInfo.TYPE_BLUETOOTH_A2DP:
+                return "TYPE_BLUETOOTH_A2DP";
+            case AudioDeviceInfo.TYPE_HDMI:
+                return "TYPE_HDMI";
+            case AudioDeviceInfo.TYPE_HDMI_ARC:
+                return "TYPE_HDMI_ARC";
+            case AudioDeviceInfo.TYPE_USB_DEVICE:
+                return "TYPE_USB_DEVICE";
+            case AudioDeviceInfo.TYPE_USB_ACCESSORY:
+                return "TYPE_USB_ACCESSORY";
+            case AudioDeviceInfo.TYPE_DOCK:
+                return "TYPE_DOCK";
+            case AudioDeviceInfo.TYPE_FM:
+                return "TYPE_FM";
+            case AudioDeviceInfo.TYPE_BUILTIN_MIC:
+                return "TYPE_BUILTIN_MIC";
+            case AudioDeviceInfo.TYPE_FM_TUNER:
+                return "TYPE_FM_TUNER";
+            case AudioDeviceInfo.TYPE_TV_TUNER:
+                return "TYPE_TV_TUNER";
+            case AudioDeviceInfo.TYPE_TELEPHONY:
+                return "TYPE_TELEPHONY";
+            case AudioDeviceInfo.TYPE_AUX_LINE:
+                return "TYPE_AUX_LINE";
+            case AudioDeviceInfo.TYPE_IP:
+                return "TYPE_IP";
+            case AudioDeviceInfo.TYPE_BUS:
+                return "TYPE_BUS";
+            case AudioDeviceInfo.TYPE_USB_HEADSET:
+                return "TYPE_USB_HEADSET";
+            default:
+                return "TYPE UNHANDLED ";
         }
     }
 
