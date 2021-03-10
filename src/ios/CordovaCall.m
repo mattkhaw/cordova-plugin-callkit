@@ -392,14 +392,17 @@ NSMutableDictionary* callsMetadata;
 {
     CDVPluginResult* pluginResult = nil;
 
-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
-        {
-        if (granted) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
-        } else {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
+    if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] == AVAuthorizationStatusNotDetermined) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
+            {
+                if (granted) {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
+                } else {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
+            }
+        }];
     }
-    }];
+
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
@@ -407,14 +410,16 @@ NSMutableDictionary* callsMetadata;
 {
     CDVPluginResult* pluginResult = nil;
 
-    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
-        {
-        if (granted) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
-        } else {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+    if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo] == AVAuthorizationStatusNotDetermined) {
+        [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
+            {
+            if (granted) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
+            } else {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+            }
+        }];
     }
-    }];
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
