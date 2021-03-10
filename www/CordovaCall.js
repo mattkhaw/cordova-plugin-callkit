@@ -160,9 +160,9 @@ exports.reportCallEndedReason = function (callId, reason, success, error) {
 };
 
 exports.requestMicPermission = function (success, error) {
-  exec(success, error, "CordovaCall", "requestMicPermission");
+  exec(success, error, "CordovaCall", "requestMicPermission", []);
 };
 
 exports.requestCameraPermission = function (success, error) {
-  exec(success, error, "CordovaCall", "requestCameraPermission");
+  exec(success, error, "CordovaCall", "requestCameraPermission", []);
 };
