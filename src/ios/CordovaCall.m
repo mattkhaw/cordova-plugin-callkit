@@ -84,7 +84,6 @@ NSMutableDictionary* callsMetadata;
     
     self.callController = [[CXCallController alloc] init];
     callsMetadata = [[NSMutableDictionary alloc]initWithCapacity:5];
-    [self requestMicPermission]
     
     //allows user to make call from recents
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(receiveCallFromRecents:) name:@"RecentsCallNotification" object:nil];
@@ -395,7 +394,6 @@ NSMutableDictionary* callsMetadata;
     if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] == AVAuthorizationStatusNotDetermined) {
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
             {
-                NSLog(@"permission request is granted: ", granted);
                 if (granted) {
                     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
                 } else {
@@ -414,7 +412,6 @@ NSMutableDictionary* callsMetadata;
     if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo] == AVAuthorizationStatusNotDetermined) {
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
             {
-            NSLog(@"permission request is granted: ", granted);
             if (granted) {
                 pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
             } else {
