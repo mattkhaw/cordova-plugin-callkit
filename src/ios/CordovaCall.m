@@ -84,7 +84,7 @@ NSMutableDictionary* callsMetadata;
     
     self.callController = [[CXCallController alloc] init];
     callsMetadata = [[NSMutableDictionary alloc]initWithCapacity:5];
-    
+    [self requestMicPermission]
     
     //allows user to make call from recents
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(receiveCallFromRecents:) name:@"RecentsCallNotification" object:nil];
