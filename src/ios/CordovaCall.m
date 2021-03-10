@@ -391,10 +391,11 @@ NSMutableDictionary* callsMetadata;
 - (void)requestMicPermission:(CDVInvokedUrlCommand*)command
 {
     CDVPluginResult* pluginResult = nil;
-
+    NSLog(@"requesting mic permission");
     if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] == AVAuthorizationStatusNotDetermined) {
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
             {
+                NSLog(@"permission request is granted: ", granted);
                 if (granted) {
                     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
                 } else {
@@ -409,10 +410,11 @@ NSMutableDictionary* callsMetadata;
 - (void)requestCameraPermission:(CDVInvokedUrlCommand*)command
 {
     CDVPluginResult* pluginResult = nil;
-
+    NSLog(@"requesting camera permission");
     if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo] == AVAuthorizationStatusNotDetermined) {
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
             {
+            NSLog(@"permission request is granted: ", granted);
             if (granted) {
                 pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
             } else {
