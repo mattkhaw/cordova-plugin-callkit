@@ -123,3 +123,11 @@ exports.callNumber = function(to, success, error) {
 exports.reportCallEndedReason = function (callId, reason, success, error) {
     exec(success, error, "CordovaCall", "reportCallEndedReason", [callId, reason]);
 }
+
+exports.requestMicPermission = function(success, error) {
+    exec(success, error, "CordovaCall", "requestMicPermission", []);
+};
+
+exports.requestCameraPermission = function(success, error) {
+    exec(success, error, "CordovaCall", "requestCameraPermission", []);
+};
