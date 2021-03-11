@@ -37,7 +37,6 @@
 - (void)speakerOff:(CDVInvokedUrlCommand*)command;
 - (void)callNumber:(CDVInvokedUrlCommand*)command;
 - (void)reportCallEndedReason:(CDVInvokedUrlCommand*)command;
-- (void)reportCallEndedReason:(CDVInvokedUrlCommand*)command;
 - (void)requestMicPermission:(CDVInvokedUrlCommand*)command;
 - (void)requestCameraPermission:(CDVInvokedUrlCommand*)command;
 
