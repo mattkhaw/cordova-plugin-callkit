@@ -386,12 +386,18 @@ NSMutableDictionary* callsMetadata;
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
-
 - (void)requestMicPermission:(CDVInvokedUrlCommand*)command
 {
     __block CDVPluginResult* pluginResult = nil;
     NSLog(@"requesting mic permission");
-    if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] == AVAuthorizationStatusNotDetermined) {
+    switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
+        case AVAuthorizationStatusAuthorized:
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
+        break;
+        case AVAuthorizationStatusDenied:
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
+        break;
+        case AVAuthorizationStatusNotDetermined:
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
             {
                 if (granted) {
@@ -400,6 +406,7 @@ NSMutableDictionary* callsMetadata;
                     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
             }
         }];
+        break;
     }
 
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
@@ -409,15 +416,23 @@ NSMutableDictionary* callsMetadata;
 {
     __block CDVPluginResult* pluginResult = nil;
     NSLog(@"requesting camera permission");
-    if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo] == AVAuthorizationStatusNotDetermined) {
+    switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo]) {
+        case AVAuthorizationStatusAuthorized:
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
+        break;
+        case AVAuthorizationStatusDenied:
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+        break;
+        case AVAuthorizationStatusNotDetermined:
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
             {
-            if (granted) {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
-            } else {
-                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+                if (granted) {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
+                } else {
+                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
             }
         }];
+        break;
     }
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
