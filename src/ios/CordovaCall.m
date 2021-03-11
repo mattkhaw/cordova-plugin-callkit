@@ -386,59 +386,63 @@ NSMutableDictionary* callsMetadata;
     
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
+
 - (void)requestMicPermission:(CDVInvokedUrlCommand*)command
 {
     __block CDVPluginResult* pluginResult = nil;
-    NSLog(@"requesting mic permission");
-    switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio]) {
+    AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+    switch (status) {
         case AVAuthorizationStatusAuthorized:
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         break;
         case AVAuthorizationStatusDenied:
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         break;
         case AVAuthorizationStatusNotDetermined:
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler: ^ (BOOL granted)
             {
                 if (granted) {
-                    NSLog(@"mic permission granted");
                     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Record permission has been granted"];
                 } else {
                     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Record permission has not been granted"];
             }
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         }];
         break;
     }
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (void)requestCameraPermission:(CDVInvokedUrlCommand*)command
 {
     __block CDVPluginResult* pluginResult = nil;
-    NSLog(@"requesting camera permission");
-    switch ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo]) {
+    AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
+    switch (status) {
         case AVAuthorizationStatusAuthorized:
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         break;
         case AVAuthorizationStatusDenied:
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         break;
         case AVAuthorizationStatusNotDetermined:
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler: ^ (BOOL granted)
             {
-                if (granted) {
-                    NSLog(@"camera permission granted");
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
-                } else {
-                    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
-            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                    if (granted) {
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Camera permission has been granted"];
+                    } else {
+                        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Camera permission has not been granted"];
+                }
+                [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+            });
         }];
         break;
     }
-    
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
+
 
 - (void)mute:(CDVInvokedUrlCommand*)command
 {
