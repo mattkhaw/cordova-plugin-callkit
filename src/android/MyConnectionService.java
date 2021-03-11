@@ -188,6 +188,13 @@ public class MyConnectionService extends ConnectionService {
             }
 
             @Override
+            public void onAnswer(int videoState) { 
+                // called on Android 11 MIUI 12 instead of default onAnswer
+                Log.w(TAG, "[VOIPCALLKITPLUGIN] [MyConnectionService] [onCreateIncomingConnection] onAnswer(with videoState): CALLED. videoState: " + videoState);
+                onAnswer();
+            }
+
+            @Override
             public void onReject() {
                 //----------------------------------------------------------------------------------
                 //onReject / DECLINE CALL button

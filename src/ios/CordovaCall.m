@@ -16,22 +16,25 @@ BOOL monitorAudioRouteChange = NO;
 BOOL enableDTMF = NO;
 NSMutableDictionary* callsMetadata;
 
+#pragma mark -
+#pragma mark China
+#pragma mark -
 - (BOOL)isCallKitDisabledForChina{
     BOOL isCallKitDisabledForChina = FALSE;
     
     NSLocale *currentLocale = [NSLocale currentLocale];
     
-    NSLog(@"currentLocale.countryCode:'%@'", currentLocale);
-    NSLog(@"currentLocale.localeIdentifier:'%@'", currentLocale.localeIdentifier);
-    NSLog(@"currentLocale.countryCode:'%@'", currentLocale.countryCode);
-    NSLog(@"currentLocale.languageCode:'%@'", currentLocale.languageCode);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale.countryCode:'%@'", currentLocale);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale.localeIdentifier:'%@'", currentLocale.localeIdentifier);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale.countryCode:'%@'", currentLocale.countryCode);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale.languageCode:'%@'", currentLocale.languageCode);
     
     if ([currentLocale.countryCode containsString: @"CN"] || [currentLocale.countryCode containsString: @"CHN"]) {
-        NSLog(@"currentLocale is China so we CANNOT use CallKit.");
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale is China so we CANNOT use CallKit.");
         isCallKitDisabledForChina = TRUE;
         
     } else {
-        NSLog(@"currentLocale is NOT China(CN/CHN) so we CAN use CallKit.");
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] isCallKitDisabledForChina: currentLocale is NOT China(CN/CHN) so we CAN use CallKit.");
         isCallKitDisabledForChina = FALSE;
     }
     
@@ -40,22 +43,32 @@ NSMutableDictionary* callsMetadata;
 
 - (void)pluginInitialize
 {
+    //SETUP as EARLY AS POSSIBLE - as iOS change it for mode:VoiceChat or mode:VideoChat
+    //detect Audio Route Changes to make speakerOn and speakerOff event handlers
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleAudioRouteChange:)
+                                                 name:AVAudioSessionRouteChangeNotification
+                                               object:nil];
+    
+    
     //CALLKIT banned in china
     NSLocale *currentLocale = [NSLocale currentLocale];
     
-    NSLog(@"currentLocale.countryCode:'%@'", currentLocale);
-    NSLog(@"currentLocale.localeIdentifier:'%@'", currentLocale.localeIdentifier);
-    NSLog(@"currentLocale.countryCode:'%@'", currentLocale.countryCode);
-    NSLog(@"currentLocale.languageCode:'%@'", currentLocale.languageCode);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] pluginInitialize: currentLocale.countryCode:'%@'", currentLocale);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] pluginInitialize: currentLocale.localeIdentifier:'%@'", currentLocale.localeIdentifier);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] pluginInitialize: currentLocale.countryCode:'%@'", currentLocale.countryCode);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] pluginInitialize: currentLocale.languageCode:'%@'", currentLocale.languageCode);
     
     
     
     
     CXProviderConfiguration *providerConfiguration;
     appName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleDisplayName"];
+    
     providerConfiguration = [[CXProviderConfiguration alloc] initWithLocalizedName:appName];
     providerConfiguration.maximumCallGroups = 1;
     providerConfiguration.maximumCallsPerCallGroup = 1;
+    
     NSMutableSet *handleTypes = [[NSMutableSet alloc] init];
     [handleTypes addObject:@(CXHandleTypePhoneNumber)];
     providerConfiguration.supportedHandleTypes = handleTypes;
@@ -78,17 +91,15 @@ NSMutableDictionary* callsMetadata;
         self.provider = [[CXProvider alloc] initWithConfiguration:providerConfiguration];
         [self.provider setDelegate:self queue:nil];
     }
-    
-    
-    
+
+    //----------------------------------------------------------------------------------------------
     
     self.callController = [[CXCallController alloc] init];
     callsMetadata = [[NSMutableDictionary alloc]initWithCapacity:5];
     
     //allows user to make call from recents
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(receiveCallFromRecents:) name:@"RecentsCallNotification" object:nil];
-    //detect Audio Route Changes to make speakerOn and speakerOff event handlers
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleAudioRouteChange:) name:AVAudioSessionRouteChangeNotification object:nil];
+   
 }
 
 // CallKit - Interface
@@ -103,18 +114,23 @@ NSMutableDictionary* callsMetadata;
     providerConfiguration = [[CXProviderConfiguration alloc] initWithLocalizedName:appName];
     providerConfiguration.maximumCallGroups = 1;
     providerConfiguration.maximumCallsPerCallGroup = 1;
+   
     if(ringtone != nil) {
         providerConfiguration.ringtoneSound = ringtone;
     }
+    
     if(icon != nil) {
         UIImage *iconImage = [UIImage imageNamed:icon];
         NSData *iconData = UIImagePNGRepresentation(iconImage);
         providerConfiguration.iconTemplateImageData = iconData;
     }
+    
     NSMutableSet *handleTypes = [[NSMutableSet alloc] init];
     [handleTypes addObject:@(CXHandleTypePhoneNumber)];
     providerConfiguration.supportedHandleTypes = handleTypes;
+    
     providerConfiguration.supportsVideo = hasVideo;
+    
     if (@available(iOS 11.0, *)) {
         providerConfiguration.includesCallsInRecents = includeInRecents;
     }
@@ -128,50 +144,190 @@ NSMutableDictionary* callsMetadata;
     
 }
 
+#pragma mark -
+#pragma mark setupAudioSession
+#pragma mark -
+
 - (void)setupAudioSession
 {
     @try {
         AVAudioSession *sessionInstance = [AVAudioSession sharedInstance];
         //------------------------------------------------------------------------------------------
-        [sessionInstance setCategory:AVAudioSessionCategoryPlayAndRecord error:nil];
+        NSError* error_setCategory= nil;
+        
+        NSLog(@"[AUDIO][SET CATEGORY] CordovaCall.m setupAudioSession setCategory:AVAudioSessionCategoryPlayAndRecord");
 
+
+        NSLog(@"[setupAudioSession] setCategory:AVAudioSessionCategoryPlayAndRecord START ********");
+        
+        if(![sessionInstance setCategory:AVAudioSessionCategoryPlayAndRecord
+                                          error:&error_setCategory] )
+        {
+            if (error_setCategory != nil) {
+                NSLog(@"[setupAudioSession] setCategory:AVAudioSessionCategoryPlayAndRecord error_setCategory: %@", error_setCategory);
+                
+            } else {
+                NSLog(@"[setupAudioSession] setCategory:AVAudioSessionCategoryPlayAndRecordOK");
+            }
+        }else{
+            NSLog(@"[setupAudioSession] setCategory:AVAudioSessionCategoryPlayAndRecord OK - END ********");
+        }
+        
+        //------------------------------------------------------------------------------------------
+        //VoiceChat OR VideoChat (SPEAKERS ON by default - cant turn off)
         //------------------------------------------------------------------------------------------
         //SPEAKERPHONE/RECEIVER(earpiece)
+        //------------------------------------------------------------------------------------------
         //in original twilio sample but doesnt show Speaker when we tap on airplay picker
         /*! Only valid with AVAudioSessionCategoryPlayAndRecord.  Appropriate for Voice over IP
          (VoIP) applications.  Reduces the number of allowable audio routes to be only those
          that are appropriate for VoIP applications and may engage appropriate system-supplied
          signal processing.  Has the side effect of setting AVAudioSessionCategoryOptionAllowBluetooth */
-        //WRONG - use AVAudioSessionModeVideoChat
-        //[sessionInstance setMode:AVAudioSessionModeVoiceChat error:nil];
-        //------------------------------------------------------------------------------------------
-
-        /*! Only valid with kAudioSessionCategory_PlayAndRecord. Reduces the number of allowable audio
-         routes to be only those that are appropriate for video chat applications. May engage appropriate
-         system-supplied signal processing.  Has the side effect of setting
-         AVAudioSessionCategoryOptionAllowBluetooth and AVAudioSessionCategoryOptionDefaultToSpeaker. */
-        //SPEAKERPHONE - REQUIRED ELSE SPEAKER doesnt appear
-        [sessionInstance setMode:AVAudioSessionModeVideoChat error:nil];
+        //SEE ALSO https://developer.apple.com/library/archive/qa/qa1803/_index.html
+        //---------------------------------------------------------
+        //WRONG - DONT use AVAudioSessionModeVideoChat - SPEAKER on by default
+        //[sessionInstance setMode:AVAudioSessionModeVideoChat error:nil];
+        //---------------------------------------------------------
+        [sessionInstance setMode:AVAudioSessionModeVoiceChat error:nil];
         //------------------------------------------------------------------------------------------
         
         
-//        //https://github.com/iFLYOS-OPEN/SDK-EVS-iOS/blob/a111b7765fab62586be72199c417e2b103317e44/Pod/Classes/common/media_player/AudioSessionManager.m
-//        [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker|AVAudioSessionCategoryOptionMixWithOthers error:nil];
-//        [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:nil];
-//        [[AVAudioSession sharedInstance] setActive:YES error:nil];
-        
-        
-        
+        //------------------------------------------------------------------------------------------
+        //   //https://github.com/iFLYOS-OPEN/SDK-EVS-iOS/blob/a111b7765fab62586be72199c417e2b103317e44/Pod/Classes/common/media_player/AudioSessionManager.m
+        //   [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker|AVAudioSessionCategoryOptionMixWithOthers error:nil];
+        //   [[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:nil];
+        //   [[AVAudioSession sharedInstance] setActive:YES error:nil];
+        //------------------------------------------------------------------------------------------
+    
         NSTimeInterval bufferDuration = .005;
         [sessionInstance setPreferredIOBufferDuration:bufferDuration error:nil];
         [sessionInstance setPreferredSampleRate:44100 error:nil];
-        NSLog(@"Configuring Audio");
+        
+        //----------------------------------------------------------------------------------
+        //Turn on SPEAKER initially
+        //----------------------------------------------------------------------------------
+        //For INCOMING CALLS - this is called by
+        
+        //we removed options:AVAudioSessionCategoryOptionDefaultToSpeaker so EARPICE is default for VoiceChat
+
+        //POSSIBLE ISSUE on OUTGOING CALL - changing category seems to kill ringin.mp3
+        //I added 2 sec delay before playing it till all AV Category changes have completed
+                
+        NSLog(@"[CordovaCall.m][setupAudioSession:] [AVAudioSession sharedInstance].currentRoute:\r%@", [AVAudioSession sharedInstance].currentRoute);
+
+        //------------------------------------------------------------------------------------------
+        //TURN ON SPEAKER FOR VIDEO CALLS (unless Bluetooth already connected)
+        //------------------------------------------------------------------------------------------
+        
+        //CAN BE CALLED TWICE - depending on direction of the call - search for overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker
+        
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][AVAudioSession sharedInstance].currentRoute:\r%@", [AVAudioSession sharedInstance].currentRoute);
+        if([self isCurrentAudioRouteOutputSetToBluetooth])
+        {
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] isCurrentAudioRouteOutputSetToBluetooth: TRUE - DONT TURN ON SPEAKER");
+            //------------------------------------------------------------------------------
+        }else{
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] isCurrentAudioRouteOutputSetToBluetooth: FALSE - OK TO TURN ON SPEAKER");
+            
+            //------------------------------------------------------------------------------
+            //Turn on SPEAKER initially
+            //------------------------------------------------------------------------------
+            //we removed options:AVAudioSessionCategoryOptionDefaultToSpeaker so EARPICE is default for VoiceChat
+            NSError *error_overrideOutputAudioPort = nil;
+            if (![[AVAudioSession sharedInstance] overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker
+                                                                    error:&error_overrideOutputAudioPort])
+            {
+                NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] setupAudioSession: AVAudioSessionPortOverrideSpeaker FAILED: %@",error_overrideOutputAudioPort);
+            }else{
+                NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] setupAudioSession: AVAudioSessionPortOverrideSpeaker OK");
+            }
+            
+            //setActive: is NOT needed - i think since iOS7
+            
+        }
+        
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] setupAudioSession: END");
     }
     @catch (NSException *exception) {
-        NSLog(@"Unknown error returned from setupAudioSession");
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] setupAudioSession: Unknown error returned from setupAudioSession");
     }
     return;
 }
+
+//method defined in two places becuase two different plugins
+//USED FOR - DONT TURN ON SPEAKER if BLUETOOTH HEADSET plugged in WHEN CHAT STARTS
+- (BOOL)isCurrentAudioRouteOutputSetToBluetooth {
+    
+    BOOL _isCurrentAudioRouteOutputSetToBluetooth = FALSE;
+    AVAudioSessionRouteDescription *currentRoute = [AVAudioSession sharedInstance].currentRoute;
+    
+    //----------------------------------------------------------------------------------------------
+    //OUTPUTS
+    //----------------------------------------------------------------------------------------------
+    NSArray<AVAudioSessionPortDescription *> *outputs = currentRoute.outputs;
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][isCurrentAudioRouteOutputSetToBluetooth] CALLED: [outputs count]:%ld", [outputs count]);
+    
+    if ([outputs count] > 0) {
+        //------------------------------------------------------------------------------------------
+        AVAudioSessionPortDescription *output = [outputs objectAtIndex:0]; //ususally only 1
+        
+        if ([[output portType] isEqualToString:AVAudioSessionPortBuiltInReceiver]) {
+            //--------------------------------------------------------------------------------------
+            //EARPIERCE / Receiver / iPhone
+            //--------------------------------------------------------------------------------------
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][isCurrentAudioRouteOutputSetToBluetooth] AVAudioSessionPortBuiltInReceiver - EARPIECE");
+            
+            
+        }
+        else if ([[output portType] isEqualToString:AVAudioSessionPortBuiltInSpeaker]) {
+            //--------------------------------------------------------------------------------------
+            //Speaker
+            //--------------------------------------------------------------------------------------
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][isCurrentAudioRouteOutputSetToBluetooth] AVAudioSessionPortBuiltInSpeaker - SPEAKER");
+            //--------------------------------------------------------------------------------------
+        }
+        else if ([[output portType] isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
+                 [[output portType] isEqualToString:AVAudioSessionPortBluetoothLE] ||
+                 [[output portType] isEqualToString:AVAudioSessionPortBluetoothHFP]
+                 )
+        {
+            //--------------------------------------------------------------------------------------
+            //BLUETOOTH
+            //--------------------------------------------------------------------------------------
+            // AVAudioSessionPortBluetoothA2DP - Output on a Bluetooth A2DP device //AIRPODS
+            // AVAudioSessionPortBluetoothLE   - Output on a Bluetooth Low Energy device
+            // AVAudioSessionPortBluetoothHFP  - Input or output on a Bluetooth Hands-Free Profile device
+            //--------------------------------------------------------------------------------------
+            //EXAMPLES
+            //Airpods v1
+            //    "<AVAudioSessionPortDescription: 0x281cfc0f0, type = BluetoothA2DPOutput; name = Brian\U2019s AirPods; UID = D4:90:9C:A3:A7:2B-tacl; selectedDataSource = (null)>"
+            //--------------------------------------------------------------------------------------
+            //bose Quiet Control
+            //NEW >> OUTPUT: portName:Bose QuietControl 30 portType:BluetoothHFP
+            //--------------------------------------------------------------------------------------
+            
+            //--------------------------------------------------------------------------------------
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][isCurrentAudioRouteOutputSetToBluetooth] NEW >> AVAudioSessionPortBuiltInSpeaker:[portType:'%@'] - BLUETOOTH HEADSET", [output portType] );
+            //--------------------------------------------------------------------------------------
+            _isCurrentAudioRouteOutputSetToBluetooth = TRUE;
+            //--------------------------------------------------------------------------------------
+        }
+        else
+        {
+            //--------------------------------------------------------------------------------------
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][routeChange] NEW >> OUTPUT: portName:%@ portType:%@",[output portName], [output portType]);
+            //--------------------------------------------------------------------------------------
+        }
+    }else{
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO][routeChange] CALLED: [outputs count] == 0");
+    }
+    
+    return _isCurrentAudioRouteOutputSetToBluetooth;
+}
+
+
+
+
 
 - (void)setAppName:(CDVInvokedUrlCommand*)command
 {
@@ -242,6 +398,8 @@ NSMutableDictionary* callsMetadata;
 
 - (void)setVideo:(CDVInvokedUrlCommand*)command
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] setVideo: CALLED");
+    
     CDVPluginResult* pluginResult = nil;
     hasVideo = [[command.arguments objectAtIndex:0] boolValue];
     [self updateProviderConfig];
@@ -249,8 +407,13 @@ NSMutableDictionary* callsMetadata;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+#pragma mark -
+#pragma mark VOIP - INCOMING - receiveCall
+#pragma mark -
 - (void)receiveCall:(CDVInvokedUrlCommand*)command
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall: CALLED - REMOTE USER CALLS IOS");
+    
     NSDictionary *incomingCall = [command.arguments objectAtIndex:0];
     if (incomingCall == nil) {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Call is not defined"] callbackId:command.callbackId];
@@ -259,6 +422,10 @@ NSMutableDictionary* callsMetadata;
     BOOL hasId = ![incomingCall[@"callId"] isEqual:[NSNull null]];
     NSString* callName = incomingCall[@"callName"];
     NSString* callId = hasId?incomingCall[@"callId"]:callName;
+    
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall: INCOMING callId:'%@'", callId);
+    
+    
     NSUUID *callUUID = [[NSUUID alloc] init];
     
     if (hasId) {
@@ -269,7 +436,9 @@ NSMutableDictionary* callsMetadata;
     if (callName != nil && [callName length] > 0) {
         CXHandle *handle = [[CXHandle alloc] initWithType:CXHandleTypePhoneNumber value:callId];
         CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
-        callUpdate.remoteHandle = handle;
+        
+        callUpdate.remoteHandle = handle; //<<CXHandle callId
+        
         callUpdate.hasVideo = hasVideo;
         callUpdate.localizedCallerName = callName;
         callUpdate.supportsGrouping = NO;
@@ -281,20 +450,41 @@ NSMutableDictionary* callsMetadata;
         //------------------------------------------------------------------------------------------
         //CHINA
         if(self.provider){
-            //----------------------------------------------------------------------------------
+            //--------------------------------------------------------------------------------------
             //SHOWS the ANSWER/DECLINE VOIP CALL ALERT
-            [self.provider reportNewIncomingCallWithUUID:callUUID update:callUpdate completion:^(NSError * _Nullable error) {
+            //--------------------------------------------------------------------------------------
+            [self.provider reportNewIncomingCallWithUUID:callUUID
+                                                  update:callUpdate
+                                              completion:^(NSError * _Nullable error)
+            {
                 if(error == nil) {
-                    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Incoming call successful"] callbackId:command.callbackId];
+                    //------------------------------------------------------------------------------
+                    //RETURNS IMMEDIATELY - the Answer/Decline ui should be showing and phone ringing
+                    //if user presses ANSWER it comes out in DELEGATE performAnswerCallAction:
+                    //if user presses DECLINE it comes out in DELEGATE performAnswerCallAction:
+                    //------------------------------------------------------------------------------
+                    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                                             messageAsString:@"Incoming call successful"]
+                                                callbackId:command.callbackId];
+                    //------------------------------------------------------------------------------
+                    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall: INCOMING callsMetadata setValue:incomingCall forKey:UUID:%@", [callUUID UUIDString]);
                     [callsMetadata setValue:incomingCall forKey:[callUUID UUIDString]];
+                    //------------------------------------------------------------------------------
+                    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall: RESPONSE 'receiveCall' payload:%@", incomingCall);
                     [self sendEvent:@"receiveCall" payload:incomingCall];
                 } else {
+                    //------------------------------------------------------------------------------
+                    //ERROR
+                    //------------------------------------------------------------------------------
+                    [self logIncomingCallError: error];
+                    
+                    //------------------------------------------------------------------------------
                     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]] callbackId:command.callbackId];
                 }
             }];
             //----------------------------------------------------------------------------------
         }else{
-            NSLog(@"self.provider is NULL");
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall: self.provider is NULL");
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"provider is nil"] callbackId:command.callbackId];
         }
         //------------------------------------------------------------------------------------------
@@ -304,8 +494,55 @@ NSMutableDictionary* callsMetadata;
     }
 }
 
+-(void) logIncomingCallError:(NSError *) error{
+    
+    //----------------------------------------------------------------------------------------------
+    //https://developer.apple.com/documentation/callkit/cxerrorcodeincomingcallerror?language=objc
+    //----------------------------------------------------------------------------------------------
+    //    CXErrorCodeIncomingCallErrorUnknown
+    //    An unknown error occurred.
+    
+    //    CXErrorCodeIncomingCallErrorUnentitled
+    //    The app isn’t entitled to receive incoming calls.
+    
+    //    CXErrorCodeIncomingCallErrorCallUUIDAlreadyExists
+    //    The incoming call UUID already exists.
+    
+    //    CXErrorCodeIncomingCallErrorFilteredByDoNotDisturb
+    //    The incoming call is filtered because Do Not Disturb is active and the incoming caller is not a VIP.
+    
+    //    CXErrorCodeIncomingCallErrorFilteredByBlockList
+    //    The incoming call is filtered because the incoming caller has been blocked by the user.
+    //----------------------------------------------------------------------------------------------
+    
+    NSInteger errorCode = [error code];
+    if(CXErrorCodeIncomingCallErrorUnknown == errorCode){
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [CXErrorCodeIncomingCallErrorUnknown]", error);
+        
+    }else if(CXErrorCodeIncomingCallErrorUnentitled == errorCode){
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [CXErrorCodeIncomingCallErrorUnentitled]", error);
+        
+    }else if(CXErrorCodeIncomingCallErrorCallUUIDAlreadyExists == errorCode){
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [CXErrorCodeIncomingCallErrorCallUUIDAlreadyExists]", error);
+        
+    }else if(CXErrorCodeIncomingCallErrorFilteredByDoNotDisturb == errorCode){
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [CXErrorCodeIncomingCallErrorFilteredByDoNotDisturb]", error);
+        
+    }else if(CXErrorCodeIncomingCallErrorFilteredByBlockList == errorCode){
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [CXErrorCodeIncomingCallErrorFilteredByBlockList]", error);
+        
+    }else {
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] receiveCall:  >> reportNewIncomingCallWithUUID FAILED error:%@ [UNHANDLED]", error);
+    }
+}
+
+#pragma mark -
+#pragma mark sendCall
+#pragma mark -
 - (void)sendCall:(CDVInvokedUrlCommand*)command
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] sendCall: CALLED");
+    
     NSDictionary *outgoingCall = [command.arguments objectAtIndex:0];
     if(outgoingCall == nil) {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Call is not defined"] callbackId:command.callbackId];
@@ -329,6 +566,8 @@ NSMutableDictionary* callsMetadata;
         [self.callController requestTransaction:transaction completion:^(NSError * _Nullable error) {
             if (error == nil) {
                 [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Outgoing call successful"] callbackId:command.callbackId];
+                
+                NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] sendCall: callsMetadata setValue:outgoingCall forKey:UUID:%@", [callUUID UUIDString]);
                 [callsMetadata setValue:outgoingCall forKey:[callUUID UUIDString]];
             } else {
                 [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:[error localizedDescription]] callbackId:command.callbackId];
@@ -341,6 +580,8 @@ NSMutableDictionary* callsMetadata;
 
 - (void)connectCall:(CDVInvokedUrlCommand*)command
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] connectCall: CALLED");
+    
     CDVPluginResult* pluginResult = nil;
     NSArray<CXCall *> *calls = self.callController.callObserver.calls;
     
@@ -364,8 +605,12 @@ NSMutableDictionary* callsMetadata;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
+#pragma mark -
+#pragma mark END CALL - endCall
+#pragma mark -
 - (void)endCall:(CDVInvokedUrlCommand*)command
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] endCall: START ********");
     CDVPluginResult* pluginResult = nil;
     NSArray<CXCall *> *calls = self.callController.callObserver.calls;
     
@@ -482,6 +727,9 @@ NSMutableDictionary* callsMetadata;
 {
     CDVPluginResult* pluginResult = nil;
     AVAudioSession *sessionInstance = [AVAudioSession sharedInstance];
+    
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] speakerOn: overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker");
+    
     BOOL success = [sessionInstance overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:nil];
     if(success) {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Speakerphone is on"];
@@ -495,6 +743,9 @@ NSMutableDictionary* callsMetadata;
 {
     CDVPluginResult* pluginResult = nil;
     AVAudioSession *sessionInstance = [AVAudioSession sharedInstance];
+    
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] speakerOff: overrideOutputAudioPort:AVAudioSessionPortOverrideNone");
+    
     BOOL success = [sessionInstance overrideOutputAudioPort:AVAudioSessionPortOverrideNone error:nil];
     if(success) {
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Speakerphone is off"];
@@ -595,40 +846,179 @@ NSMutableDictionary* callsMetadata;
 
 - (void)handleAudioRouteChange:(NSNotification *) notification
 {
-    if(monitorAudioRouteChange) {
-        NSNumber* reasonValue = notification.userInfo[@"AVAudioSessionRouteChangeReasonKey"];
-        AVAudioSessionRouteDescription* previousRouteKey = notification.userInfo[@"AVAudioSessionRouteChangePreviousRouteKey"];
-        NSArray* outputs = [previousRouteKey outputs];
-        if([outputs count] > 0) {
-            AVAudioSessionPortDescription *output = outputs[0];
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: START ********");
+    
+    //NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: notification:\r%@", notification
+
+    if(NULL != notification){
+        //------------------------------------------------------------------------------------------
+        //Name
+        //------------------------------------------------------------------------------------------
+        if(NULL != notification.name){
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: notification.name:%@", notification.name);
+        }else{
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: notification.name is NULL");
+        }
+        
+        //------------------------------------------------------------------------------------------
+        //RouteChangeReason
+        //------------------------------------------------------------------------------------------
+        NSNumber* reasonValueNumber = notification.userInfo[@"AVAudioSessionRouteChangeReasonKey"];
+        if(NULL != reasonValueNumber){
+            NSString * reasonString = [self stringForAVAudioSessionRouteChangeReason:[reasonValueNumber intValue]];
+            
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: RouteChangeReason: %@", reasonString);
+            
+        }else{
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: RouteChangeReason: reasonValueNumber is NULL");
+        }
+
+        //----------------------------------------------------------------------------------------
+        //PreviousRoute
+        //----------------------------------------------------------------------------------------
+        AVAudioSessionRouteDescription* previousRoute = notification.userInfo[@"AVAudioSessionRouteChangePreviousRouteKey"];
+        if(NULL != previousRoute){
+            //--------------------------------------------------------------------------------------
+            NSArray* inputs = [previousRoute inputs];
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: PREVIOUS: INPUTS: [inputs count]: %ld", [inputs count]);
+            
+            for (AVAudioSessionPortDescription *input in inputs) {
+                NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: PREVIOUS: INPUT: %@", input);
+            }
             
             //--------------------------------------------------------------------------------------
-            //SPEAKERPHONE
+            //PREVIOUS - OUTPUTS
             //--------------------------------------------------------------------------------------
-            //BC - if you change from Speaker to iPhone in the AirPLay picker this tell cordova
-            //'Speaker' > speakerOn     - AVAudioSessionPortBuiltInSpeaker constant maps to string 'Speaker'
-            //NOT'Speaker' > speakerOff - 'Receiver' //AVAudioSessionPortBuiltInReceiver
-            //--------------------------------------------------------------------------------------
-            if(![output.portType isEqual: @"Speaker"] && [reasonValue isEqual:@4]) {
-                [self sendEvent:@"speakerOn" payload:@{}];
-                
-            } else if([output.portType isEqual: @"Speaker"] && [reasonValue isEqual:@3]) {
-                [self sendEvent:@"speakerOff" payload:@{}];
-                
+            NSArray* outputs = [previousRoute outputs];
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: PREVIOUS: OUTPUTS: [outputs count]: %ld", [outputs count]);
+            
+            for (AVAudioSessionPortDescription *output in outputs) {
+                NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: PREVIOUS: OUTPUT: %@", output);
             }
+            //--------------------------------------------------------------------------------------
+            
+        }else{
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: reasonValueNumberis NULL");
         }
+
+        //------------------------------------------------------------------------------------------
+        //CURRENT
+        //------------------------------------------------------------------------------------------
+        if(NULL != [AVAudioSession sharedInstance]){
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: CURRENT: [AVAudioSession sharedInstance].category:%@", [AVAudioSession sharedInstance].category);
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: CURRENT: [AVAudioSession sharedInstance].mode:%@", [AVAudioSession sharedInstance].mode);
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: CURRENT: [AVAudioSession sharedInstance].outputVolume:%f", [AVAudioSession sharedInstance].outputVolume);
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: CURRENT: [AVAudioSession sharedInstance].currentRoute:\r%@", [AVAudioSession sharedInstance].currentRoute);
+        }else{
+            NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: CURRENT: [AVAudioSession sharedInstance] is NULL");
+        }
+        
+        //------------------------------------------------------------------------------------------
+    }else{
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] handleAudioRouteChange: handleAudioRouteChange is NULL");
     }
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m][AUDIO] handleAudioRouteChange: END ********");
+
 }
 
-// CallKit - Provider
+
+- (NSString *) stringForAVAudioSessionRouteChangeReason:(int) reasonValue{
+    NSString * reason = @"ERROR_UNHANDLED_RouteChangeReason";
+
+    
+    //----------------------------------------------------------------------------------------------
+    //    typedef NS_ENUM(NSUInteger, AVAudioSessionRouteChangeReason) {
+    //        /// The reason is unknown.
+    //        AVAudioSessionRouteChangeReasonUnknown = 0,
+    //
+    //        /// A new device became available (e.g. headphones have been plugged in).
+    //        AVAudioSessionRouteChangeReasonNewDeviceAvailable = 1,
+    //
+    //        /// The old device became unavailable (e.g. headphones have been unplugged).
+    //        AVAudioSessionRouteChangeReasonOldDeviceUnavailable = 2,
+    //
+    //        /// The audio category has changed (e.g. AVAudioSessionCategoryPlayback has been changed to
+    //        /// AVAudioSessionCategoryPlayAndRecord).
+    //        AVAudioSessionRouteChangeReasonCategoryChange = 3,
+    //
+    //        /// The route has been overridden (e.g. category is AVAudioSessionCategoryPlayAndRecord and
+    //        /// the output has been changed from the receiver, which is the default, to the speaker).
+    //        AVAudioSessionRouteChangeReasonOverride = 4,
+    //
+    //        /// The device woke from sleep.
+    //        AVAudioSessionRouteChangeReasonWakeFromSleep = 6,
+    //
+    //        /// Returned when there is no route for the current category (for instance, the category is
+    //        /// AVAudioSessionCategoryRecord but no input device is available).
+    //        AVAudioSessionRouteChangeReasonNoSuitableRouteForCategory = 7,
+    //
+    //        /// Indicates that the set of input and/our output ports has not changed, but some aspect of
+    //        /// their configuration has changed.  For example, a port's selected data source has changed.
+    //        /// (Introduced in iOS 7.0, watchOS 2.0, tvOS 9.0).
+    //        AVAudioSessionRouteChangeReasonRouteConfigurationChange = 8
+    //    };
+    //----------------------------------------------------------------------------------------------
+    
+    if(AVAudioSessionRouteChangeReasonUnknown == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonUnknown - REASON UNKNOWN";
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonNewDeviceAvailable == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonNewDeviceAvailable - REASON - NEW DEVICE AVAILABLE";
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonOldDeviceUnavailable == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonOldDeviceUnavailable - REASON - OLD DEVICE UNAVAILABLE";
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonCategoryChange == reasonValue){
+
+        reason = [NSString stringWithFormat:@"AVAudioSessionRouteChangeReasonCategoryChange - REASON - CATEGORY CHANGE TO:%@", [AVAudioSession sharedInstance].category];
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonOverride == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonOverride - REASON - REASON OVERRIDE";
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonWakeFromSleep == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonWakeFromSleep - REASON - WAKE FROM SLEEP";
+        
+    }
+    else if(AVAudioSessionRouteChangeReasonRouteConfigurationChange == reasonValue){
+        reason = @"AVAudioSessionRouteChangeReasonRouteConfigurationChange - REASON - CONFIGURATION CHANGE";
+        
+    }
+    else {
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] stringForAVAudioSessionRouteChangeReason: UNHANDLED reasonValue:%d", reasonValue);
+    }
+    
+    return reason;
+}
+
+
+
+
+
+#pragma mark -
+#pragma mark CallKit - Provider
+#pragma mark -
+
 - (void)providerDidReset:(CXProvider *)provider
 {
     NSLog(@"%s","providerdidreset");
 }
 
+#pragma mark -
+#pragma mark performStartCallAction
+#pragma mark -
 - (void)provider:(CXProvider *)provider performStartCallAction:(CXStartCallAction *)action
 {
+    //FOR INCOMING CALL THIS TURNS ON THE SPEAKER / for outgoing its TwilioSDK.audioDevice....in TVA
+    //may be interfering with mp3
+    //AVSession configured in TVC > viewDidLoad > audioDevice.block
     [self setupAudioSession];
+    
+    
     CXCallUpdate *callUpdate = [[CXCallUpdate alloc] init];
     callUpdate.remoteHandle = action.handle;
     callUpdate.hasVideo = action.video;
@@ -649,14 +1039,19 @@ NSMutableDictionary* callsMetadata;
 
 - (void)provider:(CXProvider *)provider didActivateAudioSession:(AVAudioSession *)audioSession
 {
-    NSLog(@"activated audio");
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] provider:didActivateAudioSession:");
+    
     monitorAudioRouteChange = YES;
 }
 
 - (void)provider:(CXProvider *)provider didDeactivateAudioSession:(AVAudioSession *)audioSession
 {
-    NSLog(@"deactivated audio");
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] didDeactivateAudioSession: deactivated audio");
 }
+
+#pragma mark -
+#pragma mark performAnswerCallAction - USER PRESSES ANSWER on INCOMING CALL
+#pragma mark -
 
 - (void)provider:(CXProvider *)provider performAnswerCallAction:(CXAnswerCallAction *)action
 {
@@ -704,14 +1099,23 @@ NSMutableDictionary* callsMetadata;
 
 - (void)sendEvent:(NSString*)eventName payload:(NSDictionary*)payload
 {
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] RESPONSE START *************************");
     if(eventCallbackId == nil) {
+        NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] RESPONSE >> sendEvent: ERROR eventCallbackId == nil > return");
         return;
     }
     
     NSDictionary *event = @{@"eventName":eventName, @"data":payload};
+    
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] RESPONSE >> sendEvent:event:'%@'", event);
+    NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] RESPONSE END  ***************************");
+    
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:event];
     [pluginResult setKeepCallbackAsBool:YES];
+    
+    //NSLog(@"[VOIPCALLKITPLUGIN][CordovaCall.m] sendEvent: pluginResult:'%@'", pluginResult);
+    
     [self.commandDelegate sendPluginResult:pluginResult callbackId:eventCallbackId];
 }
 
