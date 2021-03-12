@@ -37,6 +37,8 @@
 - (void)speakerOff:(CDVInvokedUrlCommand*)command;
 - (void)callNumber:(CDVInvokedUrlCommand*)command;
 - (void)reportCallEndedReason:(CDVInvokedUrlCommand*)command;
+- (void)requestMicPermission:(CDVInvokedUrlCommand*)command;
+- (void)requestCameraPermission:(CDVInvokedUrlCommand*)command;
 
 - (void)receiveCallFromRecents:(NSNotification *) notification;
 - (void)handleAudioRouteChange:(NSNotification *) notification;
