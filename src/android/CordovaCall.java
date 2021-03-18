@@ -334,7 +334,12 @@ public class CordovaCall extends CordovaPlugin {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
-    public static void processCallNotification(Context context, String notificationType, String notificationData) {
+     public static void processCallNotification(
+        Context context,
+        String notificationType,
+        String notificationData,
+        String baseUrl,
+        String authToken) {
 
         Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] START ******** ");
         Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] " + notificationType);
@@ -392,8 +397,12 @@ public class CordovaCall extends CordovaPlugin {
 
         switch (notificationType) {
             case "CallCreated":
-                Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCreated >> CALL registerIncomingCall]");
-                registerIncomingCall(context, notificationData);
+                if (isIncomingCallCompleted(baseUrl, authToken, notification_callId)) {
+                  Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCreated >> CALL is already completed");
+                } else {
+                    Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [processCallNotification:] >>> CallCreated >> CALL registerIncomingCall]");
+                    registerIncomingCall(context, notificationData);
+                }
                 break;
             case "CallAnsweredElsewhere":
                 if (null != notification_Connection) {
@@ -664,6 +673,76 @@ public class CordovaCall extends CordovaPlugin {
         });
 
         Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [sendJSON] RESPONSE TO CORDOVA - END   *************************" );
+    }
 
+    private static String getCallAsJson(String baseUrl, String authToken, String callId) throws IOException {
+        String urlString = baseUrl + "/api/calls/" + callId;
+
+        return requestJson(urlString, authToken);
+    }
+
+    private static String requestJson(String urlString, String authToken) throws IOException {
+      HttpURLConnection urlConnection = null;
+      URL url = new URL(urlString);
+      urlConnection = (HttpURLConnection) url.openConnection();
+      urlConnection.setRequestMethod("GET");
+      urlConnection.setReadTimeout(10000 /* milliseconds */);
+      urlConnection.setConnectTimeout(15000 /* milliseconds */);
+      urlConnection.setDoOutput(false);
+      urlConnection.setRequestProperty("Authorization", "clarksons-cloud-token " + authToken);
+      urlConnection.setRequestProperty("Accept-Encoding", "gzip");
+      urlConnection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+      urlConnection.connect();
+
+      int status = urlConnection.getResponseCode();
+
+      Reader reader = null;
+      if (status != 200) {
+        if ("gzip".equals(urlConnection.getContentEncoding())) {
+          reader = new InputStreamReader(new GZIPInputStream(urlConnection.getErrorStream()));
+        } else {
+          reader = new InputStreamReader(urlConnection.getErrorStream());
+        }
+      } else {
+        if ("gzip".equals(urlConnection.getContentEncoding())) {
+          reader = new InputStreamReader(new GZIPInputStream(urlConnection.getInputStream()));
+        } else {
+          reader = new InputStreamReader(urlConnection.getInputStream());
+        }
+      }
+
+      BufferedReader br = new BufferedReader(reader);
+      StringBuilder sb = new StringBuilder();
+
+      String line;
+      while ((line = br.readLine()) != null) {
+        sb.append(line + "\n");
+      }
+      br.close();
+
+      String jsonString = sb.toString();
+
+      return jsonString;
+    }
+
+    private static boolean isIncomingCallCompleted(String baseUrl, String authToken, String callId) {
+        Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [isIncomingCallActual] callId: " + callId);
+
+        Boolean isCompleted = null;
+
+        try {
+            JSONObject actualCallJson = new JSONObject(getCallAsJson(baseUrl, authToken,callId));
+            int status = actualCallJson.getInt("callStatus");
+
+            if (status == 0) {
+              isCompleted = false;
+            } else if (status == 1) {
+              isCompleted = true;
+            }
+        } catch (IOException | JSONException e) {
+          Log.e(TAG, "[VOIPCALLKITPLUGIN] [CordovaCall] [isIncomingCallActual] callId: " + callId + " actual call request failure");
+        }
+
+        return isCompleted != null && isCompleted.booleanValue();
     }
 }
