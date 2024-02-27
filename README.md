@@ -1,3 +1,8 @@
+# NOTE
+Master branch is not the latest - check "trusted-care-master" for newest code.
+Basically master had some PushWoosh stuff for Android from the guy that i forked, and there were naming conflicts for Android on the PushNotification plugin that we are using - https://github.com/phonegap/phonegap-plugin-push, therefore i reverted to the original creator last commit and made changes on top of that in the new branch.
+https://github.com/AleksandarTokarev/cordova-plugin-callkit/tree/trusted-care-master
+
 # cordova-plugin-callkit
 Cordova plugin that enables CallKit + PushKit (iOS) &amp; ConnectionService (Android) functionality to display native UI.
 
